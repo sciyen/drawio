@@ -11,7 +11,33 @@
  * - Export to PDF ignores current tags
  * - Sync hiddenTags with removed tags
  */
+const { default: api } = await import('https://unpkg.com/zotero-api-client');
+
+function get_author(authors) {
+	if (typeof authors === 'undefined' || authors.length <= 0)
+		return "Unknown author"
+	if (authors.length >= 3)
+		return authors[0].firstName + " et.al."
+	if (authors.length == 2)
+		return authors[0].firstName + " & " + authors[1].firstName
+	return authors[0].firstName;
+}
+
+function get_year(date) {
+	if (typeof date === 'undefined' || date == "")
+		return "Unknown year"
+	if (date.includes('-'))
+		return date.split('-')[0]
+	if (date.includes(',')) {
+		ele = date.split(',')
+		return ele[ele.length - 1]
+	}
+	return date
+}
+
 Draw.loadPlugin(function (editorUi) {
+	var collections = [];
+	var items = {};
 	var div = document.createElement('div');
 
 	// Adds resource for action
@@ -72,6 +98,30 @@ Draw.loadPlugin(function (editorUi) {
 		tagCloud.style.fontSize = '12px';
 		tagCloud.style.height = 'auto';
 		div.appendChild(tagCloud);
+
+		/* User sensitive information input */
+		var zoteroKeyInput = document.createElement('input');
+		zoteroKeyInput.setAttribute('placeholder', 'Zetero API key');
+		zoteroKeyInput.setAttribute('type', 'text');
+		zoteroKeyInput.style.width = '50%';
+		zoteroKeyInput.style.boxSizing = 'border-box';
+		zoteroKeyInput.style.fontSize = '12px';
+		zoteroKeyInput.style.borderRadius = '4px';
+		zoteroKeyInput.style.padding = '4px';
+		zoteroKeyInput.style.marginBottom = '8px';
+		div.appendChild(zoteroKeyInput);
+
+		var zoteroUIDInput = document.createElement('input');
+		zoteroUIDInput.setAttribute('placeholder', 'Zetero User Id');
+		zoteroUIDInput.setAttribute('type', 'text');
+		zoteroUIDInput.style.width = '50%';
+		zoteroUIDInput.style.boxSizing = 'border-box';
+		zoteroUIDInput.style.fontSize = '12px';
+		zoteroUIDInput.style.borderRadius = '4px';
+		zoteroUIDInput.style.padding = '4px';
+		zoteroUIDInput.style.marginBottom = '8px';
+		div.appendChild(zoteroUIDInput);
+
 
 		var updateInput = document.createElement('input');
 		updateInput.setAttribute('value', 'update')
@@ -268,7 +318,55 @@ Draw.loadPlugin(function (editorUi) {
 		});
 
 		mxEvent.addListener(updateInput, 'click', () => {
-			alert('ok')
+			const api_key = zoteroKeyInput.value;
+			const zotero_uid = zoteroUIDInput.value;
+			const zoteroapi = api(api_key).library('user', zotero_uid);
+
+			collections = await zoteroapi.collections().get().raw;
+			console.log(collections)
+
+			var collection_input = document.createElement('select')
+			collection_input.setAttribute('name', 'collection');
+			div.appendChild(collection_input)
+
+			counter = 0;
+
+			for (const c of collections) {
+				console.log(c)
+				//div_collection = $("<div class='card-body'></div>")
+				//	.append($("<h5 class='card-title'></h5>").text(c.data.name))
+
+				collection_input.appendChild(
+					document.createElement('option')
+						.setAttribute('value', c.data.name)
+						.setAttribute('text', c.data.name))
+
+				var item_div = document.createElement('div')
+
+				const itemRes = await zoteroapi.collections(c.key).items().get();
+				items[c.key] = itemRes.getData();
+				console.log(items[c.key])
+
+				items[c.key].forEach(item => {
+					if (item.itemType != "attachment") {
+						var item_checkbox = document.createElement('input')
+						item_checkbox.setAttribute('type', 'checkbox')
+						item_checkbox.setAttribute('value', '[' + String(counter) + get_author(item.creators) + get_year(item.date) + ']')
+						item_div.appendChild(item_checkbox)
+						/*div_item = $("<div></div>")
+							.append($("<h6></h6>").text(item.title))
+							.append($("<p></p>").text(String(counter))
+								.append($("<span></span>").text(": " + get_author(item.creators)))
+								.append($("<span></span>").text(", " + get_year(item.date))))
+						div_collection.append(div_item)*/
+
+						counter += 1
+					}
+				})
+				div.appendChild(item_div)
+				//$("#container").append($("<div class='card'></div>").append(div_collection))
+				console.log(c.data.name)
+			}
 		})
 
 		this.window = new mxWindow(mxResources.get('hiddenTags'), div, x, y, w, null, true, true);
