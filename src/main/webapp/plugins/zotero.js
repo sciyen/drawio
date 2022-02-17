@@ -11,7 +11,7 @@
  * - Export to PDF ignores current tags
  * - Sync hiddenTags with removed tags
  */
-const { default: api } = await import('https://unpkg.com/zotero-api-client');
+import { api } from 'https://unpkg.com/zotero-api-client';
 
 function get_author(authors) {
 	if (typeof authors === 'undefined' || authors.length <= 0)
