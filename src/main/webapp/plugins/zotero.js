@@ -11,7 +11,11 @@
  * - Export to PDF ignores current tags
  * - Sync hiddenTags with removed tags
  */
-import { api } from 'https://unpkg.com/zotero-api-client';
+
+export default async (url, module = { exports: {} }) =>
+	(Function('module', 'exports', await (await fetch(url)).text()).call(module, module, module.exports), module).exports
+//import { api } from 'https://unpkg.com/zotero-api-client';
+const api = await importUMD('https://unpkg.com/zotero-api-client')
 
 function get_author(authors) {
 	if (typeof authors === 'undefined' || authors.length <= 0)
