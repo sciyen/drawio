@@ -81,6 +81,7 @@ Draw.loadPlugin(function (editorUi) {
 		updateInput.style.borderRadius = '4px';
 		updateInput.style.padding = '4px';
 		updateInput.style.marginBottom = '8px';
+		div.appendChild(updateInput);
 
 		var graph = editorUi.editor.graph;
 		var lastValue = null;
