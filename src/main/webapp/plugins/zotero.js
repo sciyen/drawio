@@ -40,18 +40,19 @@ Draw.loadPlugin(function (ui) {
 		return state;
 	};
 
-	function citation_pretty_print(citation) {
-		return '[' + citation.replace(/[^a-zA-Z0-9/.,&:\]\[]/g, " ") + ']'
+	function citation_pretty_print(token) {
+		return '[' + token[0] + ': ' + token[3].replace(/[^a-zA-Z0-9/.,&:\]\[]/g, " ") + ']'
 	}
 
 	function get_citation_info(tag) {
 		token = tag.split('::')
 		console.log(token)
 		item = {
-			'collection': token[0],
-			'title': token[1],
-			'citation': citation_pretty_print(token[2]),
-			'key': token[3]
+			'id': token[0],
+			'collection': token[1],
+			'title': token[2],
+			'citation': citation_pretty_print(token),
+			'key': token[4]
 		}
 		return item
 	}
