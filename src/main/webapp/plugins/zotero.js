@@ -65,7 +65,7 @@ Draw.loadPlugin(function (ui) {
 		console.log(tags)
 		if (tags.length > 0) {
 			for (var i = 0; i < tags.length; i++) {
-				info = get_citation_info(tag[i])
+				info = get_citation_info(tags[i])
 				citation += info.citation + ' \n'
 			}
 		}
