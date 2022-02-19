@@ -45,12 +45,12 @@ Draw.loadPlugin(function (ui) {
 	}
 
 	function get_citation_info(tag) {
-		tokens = tag.split(':')
+		token = tag.split(':')
 		item = {
 			'collection': token[0],
 			'title': token[1],
 			'citation': citation_pretty_print(token[2]),
-			'key': tokens[3]
+			'key': token[3]
 		}
 		return item
 	}
