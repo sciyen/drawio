@@ -59,13 +59,15 @@ Draw.loadPlugin(function (ui) {
 		var numbered = mxUtils.getValue(state.style, 'numbered', 1) == 1;
 
 		// Generate tag item
-		tags = graph.getTagsForCell(state.cell);
 		citation = ''
+		tags = graph.getTagsForCell(state.cell);
+		console.log(state)
+		console.log(tags)
 		if (tags.length > 0) {
-			tags.forEach((tag) => {
-				info = get_citation_info(tag)
+			for (var i = 0; i < tags.length; i++) {
+				info = get_citation_info(tag[i])
 				citation += info.citation + ' \n'
-			})
+			}
 		}
 
 		var value = '<div style="padding:2px;border:1px solid gray;background:yellow;border-radius:2px;">'
