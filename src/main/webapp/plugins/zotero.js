@@ -45,7 +45,7 @@ Draw.loadPlugin(function (ui) {
 	}
 
 	function get_citation_info(tag) {
-		token = tag.split(':')
+		token = tag.split('::')
 		console.log(token)
 		item = {
 			'collection': token[0],
