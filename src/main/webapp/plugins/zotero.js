@@ -46,6 +46,7 @@ Draw.loadPlugin(function (ui) {
 
 	function get_citation_info(tag) {
 		token = tag.split(':')
+		console.log(token)
 		item = {
 			'collection': token[0],
 			'title': token[1],
@@ -64,10 +65,11 @@ Draw.loadPlugin(function (ui) {
 		console.log(state)
 		console.log(tags)
 		if (tags.length > 0) {
-			for (var i = 0; i < tags.length; i++) {
-				info = get_citation_info(tags[i])
+			tags.split(' ').forEach((tag) => {
+				console.log(tag)
+				info = get_citation_info(tag)
 				citation += info.citation + ' \n'
-			}
+			})
 		}
 
 		var value = '<div style="padding:2px;border:1px solid gray;background:yellow;border-radius:2px;">'
