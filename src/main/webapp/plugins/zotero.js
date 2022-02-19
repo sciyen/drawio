@@ -41,7 +41,7 @@ Draw.loadPlugin(function (ui) {
 	};
 
 	function citation_pretty_print(token) {
-		return '[' + token[0] + ': ' + token[3].replace(/[^a-zA-Z0-9/.,&:\]\[]/g, " ") + ']'
+		return token[0] + ': ' + token[3].replace(/[^a-zA-Z0-9/.,&:\]\[]/g, " ") + ']'
 	}
 
 	function get_citation_info(tag) {
