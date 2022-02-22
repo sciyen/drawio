@@ -104,149 +104,158 @@ async function retreive(ApiKey, Uid, callback) {
 	}
 }
 
-function loadZoteroTags(ui) {
-	// disable button
-	let action = ui.actions.get('reloadZotero');
-	action.enabled = false;
-
-	// load from Zotero Api and add them to the list of tags (tags for the root)
-	config = JSON.parse(localStorage.getItem(".configuration"));
-	zotero_uid = parseInt(config['zotero_uid'], 10);
-	zotero_api_key = config['zotero_api_key'];
-
-	graph = ui.editor.graph;
-	root = graph.model.getRoot();
-
-	retreive(zotero_api_key, zotero_uid, (citations) => {
-		graph.addTagsForCells([root], citations)
-		action.enabled = true;
-	});
-}
-
-function setupZoretoMenu(ui) {
-	// Adds resource for action
-	mxResources.parse('reloadZotero=Reload Zotero...');
-
-	// Adds action
-	ui.actions.addAction('reloadZotero', () => {
-		loadZoteroTags(ui);
-	});
-
-	// Adds menu item for refreshing
-	let menu = ui.menus.get('extras');
-	let oldFunct = menu.funct;
-
-	menu.funct = function (menu, parent) {
-		oldFunct.apply(this, arguments);
-		ui.menus.addMenuItems(menu, ['-', 'reloadZotero'], parent,);
-	};
-}
-
-var TagSelectorWindow = function (editorUi, x, y, w, h) {
-	var graph = editorUi.editor.graph;
-
-	var div = document.createElement('div');
-	div.style.overflow = 'hidden';
-	div.style.padding = '12px 8px 12px 8px';
-	div.style.height = 'auto';
-
-	var filterInput = document.createElement('input');
-	filterInput.setAttribute('placeholder', 'Type in the tags and press Enter to add them');
-	filterInput.setAttribute('type', 'text');
-	filterInput.style.width = '100%';
-	filterInput.style.boxSizing = 'border-box';
-	filterInput.style.fontSize = '12px';
-	filterInput.style.borderRadius = '4px';
-	filterInput.style.padding = '4px';
-	filterInput.style.marginBottom = '8px';
-	filterInput.setAttribute('placeholder', 'Filter tags');
-	div.appendChild(filterInput);
-
-	this.window = new mxWindow(mxResources.get('tagSelector'), div, x, y, w, null, true, true);
-	this.window.destroyOnClose = false;
-	this.window.setMaximizable(false);
-	this.window.setResizable(true);
-	this.window.setScrollable(true);
-	this.window.setClosable(true);
-	this.window.contentWrapper.style.overflowY = 'scroll';
-
-	mxEvent.addListener(filterInput, 'keyup', function () {
-		// Do something
-		console.log('keyup')
-	});
-
-	this.window.addListener('show', mxUtils.bind(this, function () {
-		this.window.fit();
-
-		if (this.window.isVisible()) {
-		}
-		else {
-			graph.container.focus();
-		}
-	}));
-
-	this.window.setLocation = function (x, y) {
-		var iw = window.innerWidth || document.body.clientWidth || document.documentElement.clientWidth;
-		var ih = window.innerHeight || document.body.clientHeight || document.documentElement.clientHeight;
-
-		x = Math.max(0, Math.min(x, iw - this.table.clientWidth));
-		y = Math.max(0, Math.min(y, ih - this.table.clientHeight - 48));
-
-		if (this.getX() != x || this.getY() != y) {
-			mxWindow.prototype.setLocation.apply(this, arguments);
-		}
-	};
-
-	var resizeListener = mxUtils.bind(this, function () {
-		var x = this.window.getX();
-		var y = this.window.getY();
-
-		this.window.setLocation(x, y);
-	});
-
-	mxEvent.addListener(window, 'resize', resizeListener);
-
-	this.destroy = function () {
-		mxEvent.removeListener(window, 'resize', resizeListener);
-		this.window.destroy();
-	}
-}
-
-function setupTagSelector(ui) {
-	// Adds resource for action
-	mxResources.parse('tagSelector=Tag Selector');
-
-	// Adds action
-	ui.actions.addAction('tagSelector...', () => {
-		if (ui.tagSelectorWindow == null) {
-			ui.tagSelectorWindow = new TagSelectorWindow(ui, document.body.offsetWidth - 380, 120, 300, 240);
-			ui.tagSelectorWindow.window.addListener('show', function () {
-				ui.fireEvent(new mxEventObject('tagSelector'));
-			});
-			ui.tagSelectorWindow.window.addListener('hide', function () {
-				ui.fireEvent(new mxEventObject('tagSelector'));
-			});
-			ui.tagSelectorWindow.window.setVisible(true);
-			ui.fireEvent(new mxEventObject('tagSelector'));
-		}
-		else {
-			ui.tagSelectorWindow.window.setVisible(!ui.tagSelectorWindow.window.isVisible());
-		}
-	});
-
-	// Adds menu item for refreshing
-	let menu = ui.menus.get('extras');
-	let oldFunct = menu.funct;
-
-	menu.funct = function (menu, parent) {
-		oldFunct.apply(this, arguments);
-		ui.menus.addMenuItems(menu, ['-', 'tagSelector'], parent);
-	};
-}
-
 script.onload = () => {
 	zoteroApi = ZoteroApiClient.default;
 	Draw.loadPlugin(function (ui) {
+		this.citation_raw = null
+
+		function setupZoretoMenu(ui) {
+			function loadZoteroTags(ui) {
+				// disable button
+				let action = ui.actions.get('reloadZotero');
+				action.enabled = false;
+
+				// load from Zotero Api and add them to the list of tags (tags for the root)
+				config = JSON.parse(localStorage.getItem(".configuration"));
+				zotero_uid = parseInt(config['zotero_uid'], 10);
+				zotero_api_key = config['zotero_api_key'];
+
+				graph = ui.editor.graph;
+				root = graph.model.getRoot();
+
+				retreive(zotero_api_key, zotero_uid, (citations) => {
+					graph.addTagsForCells([root], citations)
+					this.citation_raw = citations
+					action.enabled = true;
+				});
+			}
+
+			// Adds resource for action
+			mxResources.parse('reloadZotero=Reload Zotero...');
+
+			// Adds action
+			ui.actions.addAction('reloadZotero', () => {
+				loadZoteroTags(ui);
+			});
+
+			// Adds menu item for refreshing
+			let menu = ui.menus.get('extras');
+			let oldFunct = menu.funct;
+
+			menu.funct = function (menu, parent) {
+				oldFunct.apply(this, arguments);
+				ui.menus.addMenuItems(menu, ['-', 'reloadZotero'], parent,);
+			};
+		}
+
+		var TagSelectorWindow = function (editorUi, x, y, w, h) {
+			var graph = editorUi.editor.graph;
+
+			var div = document.createElement('div');
+			div.style.overflow = 'hidden';
+			div.style.padding = '12px 8px 12px 8px';
+			div.style.height = 'auto';
+
+			var filterInput = document.createElement('input');
+			filterInput.setAttribute('placeholder', 'Type in the tags and press Enter to add them');
+			filterInput.setAttribute('type', 'text');
+			filterInput.style.width = '100%';
+			filterInput.style.boxSizing = 'border-box';
+			filterInput.style.fontSize = '12px';
+			filterInput.style.borderRadius = '4px';
+			filterInput.style.padding = '4px';
+			filterInput.style.marginBottom = '8px';
+			filterInput.setAttribute('placeholder', 'Filter tags');
+			div.appendChild(filterInput);
+
+			var textInput = document.createElement('textarea');
+			textInput.style.height = '80%';
+			textInput.style.width = '100%';
+			textInput.value = this.citation_raw
+			div.appendChild(textInput);
+
+			this.window = new mxWindow(mxResources.get('tagSelector'), div, x, y, w, null, true, true);
+			this.window.destroyOnClose = false;
+			this.window.setMaximizable(false);
+			this.window.setResizable(true);
+			this.window.setScrollable(true);
+			this.window.setClosable(true);
+			this.window.contentWrapper.style.overflowY = 'scroll';
+
+			mxEvent.addListener(filterInput, 'keyup', function () {
+				// Do something
+				console.log('keyup')
+			});
+
+			this.window.addListener('show', mxUtils.bind(this, function () {
+				this.window.fit();
+
+				if (this.window.isVisible()) {
+				}
+				else {
+					graph.container.focus();
+				}
+			}));
+
+			this.window.setLocation = function (x, y) {
+				var iw = window.innerWidth || document.body.clientWidth || document.documentElement.clientWidth;
+				var ih = window.innerHeight || document.body.clientHeight || document.documentElement.clientHeight;
+
+				x = Math.max(0, Math.min(x, iw - this.table.clientWidth));
+				y = Math.max(0, Math.min(y, ih - this.table.clientHeight - 48));
+
+				if (this.getX() != x || this.getY() != y) {
+					mxWindow.prototype.setLocation.apply(this, arguments);
+				}
+			};
+
+			var resizeListener = mxUtils.bind(this, function () {
+				var x = this.window.getX();
+				var y = this.window.getY();
+
+				this.window.setLocation(x, y);
+			});
+
+			mxEvent.addListener(window, 'resize', resizeListener);
+
+			this.destroy = function () {
+				mxEvent.removeListener(window, 'resize', resizeListener);
+				this.window.destroy();
+			}
+		}
+
+		function setupTagSelector(ui) {
+			// Adds resource for action
+			mxResources.parse('tagSelector=Tag Selector');
+
+			// Adds action
+			ui.actions.addAction('tagSelector...', () => {
+				if (ui.tagSelectorWindow == null) {
+					ui.tagSelectorWindow = new TagSelectorWindow(ui, document.body.offsetWidth - 380, 120, 300, 240);
+					ui.tagSelectorWindow.window.addListener('show', function () {
+						ui.fireEvent(new mxEventObject('tagSelector'));
+					});
+					ui.tagSelectorWindow.window.addListener('hide', function () {
+						ui.fireEvent(new mxEventObject('tagSelector'));
+					});
+					ui.tagSelectorWindow.window.setVisible(true);
+					ui.fireEvent(new mxEventObject('tagSelector'));
+				}
+				else {
+					ui.tagSelectorWindow.window.setVisible(!ui.tagSelectorWindow.window.isVisible());
+				}
+			});
+
+			// Adds menu item for refreshing
+			let menu = ui.menus.get('extras');
+			let oldFunct = menu.funct;
+
+			menu.funct = function (menu, parent) {
+				oldFunct.apply(this, arguments);
+				ui.menus.addMenuItems(menu, ['-', 'tagSelector'], parent);
+			};
+		}
+
 		setupZoretoMenu(ui);
 		setupTagSelector(ui);
 
