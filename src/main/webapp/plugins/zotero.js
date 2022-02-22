@@ -218,19 +218,19 @@ function setupTagSelector(ui) {
 
 	// Adds action
 	ui.actions.addAction('tagSelector...', () => {
-		if (editorUi.tagSelectorWindow == null) {
-			editorUi.tagSelectorWindow = new TagSelectorWindow(editorUi, document.body.offsetWidth - 380, 120, 300, 240);
-			editorUi.tagSelectorWindow.window.addListener('show', function () {
-				editorUi.fireEvent(new mxEventObject('tagSelector'));
+		if (ui.tagSelectorWindow == null) {
+			ui.tagSelectorWindow = new TagSelectorWindow(ui, document.body.offsetWidth - 380, 120, 300, 240);
+			ui.tagSelectorWindow.window.addListener('show', function () {
+				ui.fireEvent(new mxEventObject('tagSelector'));
 			});
-			editorUi.tagSelectorWindow.window.addListener('hide', function () {
-				editorUi.fireEvent(new mxEventObject('tagSelector'));
+			ui.tagSelectorWindow.window.addListener('hide', function () {
+				ui.fireEvent(new mxEventObject('tagSelector'));
 			});
-			editorUi.tagSelectorWindow.window.setVisible(true);
-			editorUi.fireEvent(new mxEventObject('tagSelector'));
+			ui.tagSelectorWindow.window.setVisible(true);
+			ui.fireEvent(new mxEventObject('tagSelector'));
 		}
 		else {
-			editorUi.tagSelectorWindow.window.setVisible(!editorUi.tagSelectorWindow.window.isVisible());
+			ui.tagSelectorWindow.window.setVisible(!ui.tagSelectorWindow.window.isVisible());
 		}
 	});
 
