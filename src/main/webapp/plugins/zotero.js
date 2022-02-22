@@ -240,7 +240,7 @@ function setupTagSelector(ui) {
 
 	menu.funct = function (menu, parent) {
 		oldFunct.apply(this, arguments);
-		ui.menus.addMenuItems(menu, ['-', 'Tag Selector'], parent);
+		ui.menus.addMenuItems(menu, ['-', 'tagSelector'], parent);
 	};
 }
 
