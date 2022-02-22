@@ -107,7 +107,7 @@ async function retreive(ApiKey, Uid, callback) {
 script.onload = () => {
 	zoteroApi = ZoteroApiClient.default;
 	Draw.loadPlugin(function (ui) {
-		this.citation_raw = null
+		citation_raw = null
 
 		function setupZoretoMenu(ui) {
 			function loadZoteroTags(ui) {
@@ -125,7 +125,7 @@ script.onload = () => {
 
 				retreive(zotero_api_key, zotero_uid, (citations) => {
 					graph.addTagsForCells([root], citations)
-					this.citation_raw = citations
+					citation_raw = citations
 					action.enabled = true;
 				});
 			}
@@ -171,7 +171,7 @@ script.onload = () => {
 			var textInput = document.createElement('textarea');
 			textInput.style.height = '80%';
 			textInput.style.width = '100%';
-			textInput.value = this.citation_raw
+			textInput.value = citation_raw
 			div.appendChild(textInput);
 
 			this.window = new mxWindow(mxResources.get('tagSelector'), div, x, y, w, null, true, true);
