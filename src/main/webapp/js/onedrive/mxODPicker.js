@@ -1,4 +1,5 @@
-function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRecentList, addToRecent, pickedFileCallback, errorFn, foldersOnly, backFn, withSubmitBtn, withThumbnail, initFolderPath)
+function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRecentList, addToRecent, pickedFileCallback,
+	errorFn, foldersOnly, backFn, withSubmitBtn, withThumbnail, initFolderPath, acceptAllFiles)
 {
 	var previewHtml = '';
 	
@@ -76,6 +77,7 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 	var isDarkMode = window.Editor != null && Editor.isDarkMode != null && Editor.isDarkMode();
 	
 	var css = 
+		'.odCatsList *, .odFilesSec * { user-select: none; }' +
 		'.odCatsList {' +
 		'	box-sizing: border-box;' + 
 		'	position:absolute;' + 
@@ -369,12 +371,12 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 		}
 		
 		prevDiv.style.background = 'transparent';
-		prevDiv.innerHTML = '';
+		prevDiv.innerText = '';
 		
 		function showRenderMsg(msg)
 		{
 			prevDiv.style.background = 'transparent';
-			prevDiv.innerHTML = '';	
+			prevDiv.innerText = '';	
 
 			var status = document.createElement('div');
 			status.className = 'odPreviewStatus';
@@ -440,7 +442,7 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 		
 		if (bcDiv == null) return;
 		
-		bcDiv.innerHTML = '';
+		bcDiv.innerText = '';
 		
 		for (var i = 0; i < breadcrumb.length - 1; i++)
 		{
@@ -513,7 +515,7 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 
 		if (prevDiv != null)
 		{
-			prevDiv.innerHTML = '';
+			prevDiv.innerText = '';
 			prevDiv.style.top = '50%';
 		}
 
@@ -546,7 +548,7 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 						
 				if (isSharepointSites)
 				{
-					item.folder = true;
+					item.folder = isSharepointSites == 2? {isRoot: true} : true;
 				}
 				
 				var isFolder = item.folder !=  null;
@@ -581,7 +583,11 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 					currentItem.className += ' odRowSelected';
 					selectedFile = item;
 					selectedDriveId = driveId;
-					previewFn(selectedFile);
+					
+					if (!acceptAllFiles)
+					{
+						previewFn(selectedFile);
+					}
 				}
 				
 				(function(item2, row2)
@@ -598,7 +604,10 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 							selectedFile = item2;
 							selectedDriveId = driveId;
 							
-							previewFn(selectedFile);
+							if (!acceptAllFiles)
+							{
+								previewFn(selectedFile);
+							}
 						}
 					});
 				})(item, row);
@@ -629,7 +638,7 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
 		}, 20000); //20 sec timeout
 		
 		var filesList = _$('.odFilesList');
-        filesList.innerHTML = '';
+        filesList.innerText = '';
         spinner.spin(filesList);
         
         var url;
@@ -691,49 +700,68 @@ function mxODPicker(container, previewFn, getODFilesList, getODFileInfo, getRece
         	url += (url.indexOf('?') > 0 ? '&' : '?') + 'select=id,name,description,parentReference,file,createdBy,lastModifiedBy,lastModifiedDateTime,size,folder,remoteItem,@microsoft.graph.downloadUrl';
         }
         
-		getODFilesList(url, function(resp) 
-		{
-			if (!acceptRequest) return;
-			clearTimeout(timeoutThread);
-			
-			var list = resp.value || [];
+		var potentialDrawioFiles = [];
 
-			var potentialDrawioFiles = isSharepointSites? list : [];
-			
-			for (var i = 0; !isSharepointSites && i < list.length; i++)
+		function getChunk(nextUrl)
+		{
+			getODFilesList(nextUrl? nextUrl : url, function(resp) 
 			{
-				var file = list[i];
-				var mimeType = file.file? file.file.mimeType : null;
+				if (!acceptRequest) return;
 				
-				if (file.folder || mimeType == 'text/html' || mimeType == 'text/xml' || mimeType == 'application/xml' || mimeType == 'image/png' 
-					|| /\.svg$/.test(file.name) || /\.html$/.test(file.name) || /\.xml$/.test(file.name) || /\.png$/.test(file.name)
-					|| /\.drawio$/.test(file.name) || /\.drawiolib$/.test(file.name))
-				{
-					potentialDrawioFiles.push(file);
-				}
-			}
-			
-			renderList(potentialDrawioFiles);
-		}, 
-		function(err)
-		{
-			if (!acceptRequest) return;
-			clearTimeout(timeoutThread);
-			
-			var errMsg = null;
-			
-			try
-			{
-				errMsg = JSON.parse(err.responseText).error.message;
-			}
-			catch(e){} //ignore errors
-			
-			errorFn(mxResources.get('errorFetchingFolder', null, 'Error fetching folder items') +
-				(errMsg != null? ' (' + errMsg + ')' : ''));
+				var list = resp.value || [];
 
-			requestInProgress = false;
-			spinner.stop();
-		});
+				if (acceptAllFiles || isSharepointSites)
+				{
+					Array.prototype.push.apply(potentialDrawioFiles, list);
+				}
+				else
+				{
+					for (var i = 0; i < list.length; i++)
+					{
+						var file = list[i];
+						var mimeType = file.file? file.file.mimeType : null;
+						
+						if (file.folder || mimeType == 'text/html' || mimeType == 'text/xml' || mimeType == 'application/xml' || mimeType == 'image/png' 
+							|| /\.svg$/.test(file.name) || /\.html$/.test(file.name) || /\.xml$/.test(file.name) || /\.png$/.test(file.name)
+							|| /\.drawio$/.test(file.name) || /\.drawiolib$/.test(file.name))
+						{
+							potentialDrawioFiles.push(file);
+						}
+					}
+				}
+
+				if (resp['@odata.nextLink'] && potentialDrawioFiles.length < 1000) // TODO Support dynamic paging instead of 1000 limit
+				{
+					getChunk(resp['@odata.nextLink']);
+				}
+				else
+				{
+					clearTimeout(timeoutThread);
+					renderList(potentialDrawioFiles);
+				}
+			}, 
+			function(err)
+			{
+				if (!acceptRequest) return;
+				clearTimeout(timeoutThread);
+				
+				var errMsg = null;
+				
+				try
+				{
+					errMsg = JSON.parse(err.responseText).error.message;
+				}
+				catch(e){} //ignore errors
+				
+				errorFn(mxResources.get('errorFetchingFolder', null, 'Error fetching folder items') +
+					(errMsg != null? ' (' + errMsg + ')' : ''));
+
+				requestInProgress = false;
+				spinner.stop();
+			}, nextUrl != null);
+		};
+
+		getChunk();
 	};
 	
 	this.getSelectedItem = function()

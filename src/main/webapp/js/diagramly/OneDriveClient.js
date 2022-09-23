@@ -280,7 +280,8 @@ OneDriveClient.prototype.authenticateStep2 = function(state, success, error, fai
 			
 			if (authInfo != null)
 			{
-				var req = new mxXmlRequest(this.redirectUri + '?state=' + encodeURIComponent('cId=' + this.clientId + '&domain=' + window.location.hostname + '&token=' + state), null, 'GET'); //To identify which app/domain is used
+				var req = new mxXmlRequest(this.redirectUri + '?state=' + encodeURIComponent('cId=' + this.clientId +
+					'&domain=' + window.location.hostname + '&token=' + state), null, 'GET'); // To identify which app/domain is used
 				
 				req.send(mxUtils.bind(this, function(req)
 				{
@@ -294,7 +295,8 @@ OneDriveClient.prototype.authenticateStep2 = function(state, success, error, fai
 						this.setUser(null);
 						_token = null;
 
-						if (req.getStatus() == 401 && !failOnAuth) // (Unauthorized) [e.g, invalid refresh token]
+ 						// (Unauthorized) [e.g, invalid refresh token] or bad request
+						if ((req.getStatus() == 401 || req.getStatus() == 400) && !failOnAuth)
 						{
 							auth();
 						}
@@ -396,7 +398,6 @@ OneDriveClient.prototype.authenticateStep2 = function(state, success, error, fai
 		error({code: App.ERROR_BUSY});
 	}
 };
-
 
 OneDriveClient.prototype.getAccountTypeAndEndpoint = function(success, error)
 {
@@ -510,11 +511,11 @@ OneDriveClient.prototype.executeRequest = function(url, success, error)
 /**
  * Checks if the client is authorized and calls the next step.
  */
-OneDriveClient.prototype.checkToken = function(fn)
+OneDriveClient.prototype.checkToken = function(fn, error)
 {
 	if (_token == null || this.tokenRefreshThread == null || this.tokenExpiresOn - Date.now() < 60000)
 	{
-		this.authenticate(fn, this.emptyFn);
+		this.authenticate(fn, (error != null) ? error : this.emptyFn);
 	}
 	else
 	{
@@ -1290,7 +1291,7 @@ OneDriveClient.prototype.pickLibrary = function(fn)
 	});
 };
 
-OneDriveClient.prototype.createInlinePicker = function(fn, foldersOnly)
+OneDriveClient.prototype.createInlinePicker = function(fn, foldersOnly, acceptAllFiles)
 {
 	return mxUtils.bind(this, function()
 	{
@@ -1306,16 +1307,23 @@ OneDriveClient.prototype.createInlinePicker = function(fn, foldersOnly)
 			{
 				if (foldersOnly && typeof item.folder == 'object')
 				{
-					fn({
-						value: [item]
-					});
-					return;
+					fn({value: [item]});
 				}
 				else if (!item.folder)
 				{
-					fn(OneDriveFile.prototype.getIdOf(item));
-					return;
+					var id = OneDriveFile.prototype.getIdOf(item);
+
+					this.executeRequest(this.getItemURL(id), mxUtils.bind(this, function(req)
+					{
+						if (req.getStatus() >= 200 && req.getStatus() <= 299)
+						{
+							var meta = JSON.parse(req.getText());
+							fn(id, {value: [meta]});
+						}
+					}), null);
 				}
+
+				return;
 			}
 			
 			return mxResources.get('invalidSel', null, 'Invalid selection');
@@ -1326,9 +1334,9 @@ OneDriveClient.prototype.createInlinePicker = function(fn, foldersOnly)
 		div.style.width = dlg.container.parentNode.style.width;
 		div.style.height = (parseInt(dlg.container.parentNode.style.height) - 60) + 'px';
 		
-		odPicker = new mxODPicker(div, null, mxUtils.bind(this, function(url, success, error)
+		odPicker = new mxODPicker(div, null, mxUtils.bind(this, function(url, success, error, isAbsUrl)
 		{
-			this.executeRequest(this.baseUrl + url, function(req)
+			this.executeRequest(isAbsUrl? url : this.baseUrl + url, function(req)
 			{
 				success(JSON.parse(req.getText()));
 			}, error);
@@ -1354,7 +1362,7 @@ OneDriveClient.prototype.createInlinePicker = function(fn, foldersOnly)
 		mxUtils.bind(this, function(err)
 		{
 			this.ui.showError(mxResources.get('error'), err);
-		}), foldersOnly); 
+		}), foldersOnly, null, null, null, null, acceptAllFiles); 
 	});
 };
 
@@ -1439,7 +1447,7 @@ OneDriveClient.prototype.pickFolder = function(fn, direct)
 /**
  * Checks if the client is authorized and calls the next step.
  */
-OneDriveClient.prototype.pickFile = function(fn)
+OneDriveClient.prototype.pickFile = function(fn, acceptAllFiles)
 {
 	fn = (fn != null) ? fn : mxUtils.bind(this, function(id)
 	{
@@ -1451,7 +1459,7 @@ OneDriveClient.prototype.pickFile = function(fn)
 		this.ui.showError(mxResources.get('error'), e && e.message? e.message : e);
 	});
 	
-	var odOpenDlg = this.inlinePicker? this.createInlinePicker(fn) :
+	var odOpenDlg = this.inlinePicker? this.createInlinePicker(fn, null, acceptAllFiles) :
 							mxUtils.bind(this, function()
 	{
 		OneDrive.open(
@@ -1463,7 +1471,7 @@ OneDriveClient.prototype.pickFile = function(fn)
 			{
 				'endpointHint': mxClient.IS_IE11? null : this.endpointHint, //IE11 doen't work with our modified version, so, setting endpointHint disable using our token BUT will force relogin!
 				'redirectUri': this.pickerRedirectUri,
-				'queryParameters': 'select=id,name,parentReference', //We can also get @microsoft.graph.downloadUrl within this request but it will break the normal process
+				'queryParameters': 'select=id,name,parentReference,webUrl', //We can also get @microsoft.graph.downloadUrl within this request but it will break the normal process
 				'accessToken': _token,
 				isConsumerAccount: false
 			},
@@ -1499,7 +1507,6 @@ OneDriveClient.prototype.pickFile = function(fn)
 		{
 			if (this.inlinePicker)
 			{
-				this.ui.hideDialog();
 				odOpenDlg();
 			}
 			else

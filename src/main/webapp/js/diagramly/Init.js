@@ -21,10 +21,11 @@ window.DRAWIO_BASE_URL = window.DRAWIO_BASE_URL || ((/.*\.draw\.io$/.test(window
 window.DRAWIO_LIGHTBOX_URL = window.DRAWIO_LIGHTBOX_URL || 'https://viewer.diagrams.net';
 window.EXPORT_URL = window.EXPORT_URL || 'https://convert.diagrams.net/node/export';
 window.PLANT_URL = window.PLANT_URL || 'https://plant-aws.diagrams.net';
-window.DRAW_MATH_URL = window.DRAW_MATH_URL || window.DRAWIO_BASE_URL + '/math';
+window.DRAW_MATH_URL = window.DRAW_MATH_URL || window.DRAWIO_BASE_URL + '/math/es5';
 window.VSD_CONVERT_URL = window.VSD_CONVERT_URL || 'https://convert.diagrams.net/VsdConverter/api/converter';
 window.EMF_CONVERT_URL = window.EMF_CONVERT_URL || 'https://convert.diagrams.net/emf2png/convertEMF';
-window.REALTIME_URL = window.REALTIME_URL || 'cache';
+window.REALTIME_URL = window.REALTIME_URL || ((window.location.hostname == 'test.draw.io' &&
+	urlParams['cache'] != 'local') ? 'https://app.diagrams.net/cache' : 'cache');
 window.DRAWIO_GITLAB_URL = window.DRAWIO_GITLAB_URL || 'https://gitlab.com';
 window.DRAWIO_GITLAB_ID = window.DRAWIO_GITLAB_ID || '2b14debc5feeb18ba65358d863ec870e4cc9294b28c3c941cb3014eb4af9a9b4';
 window.DRAWIO_GITHUB_URL = window.DRAWIO_GITHUB_URL || 'https://github.com';
@@ -36,6 +37,8 @@ window.OPEN_URL = window.OPEN_URL || 'import';
 window.PROXY_URL = window.PROXY_URL || 'proxy';
 window.DRAWIO_VIEWER_URL = window.DRAWIO_VIEWER_URL || null;
 window.NOTIFICATIONS_URL = window.NOTIFICATIONS_URL || 'https://www.draw.io/notifications';
+window.RT_WEBSOCKET_URL = window.RT_WEBSOCKET_URL || ('wss://' + ((window.location.hostname == 'test.draw.io') ?
+	'app.diagrams.net' : window.location.hostname) + '/rt');
 
 // Paths and files
 window.SHAPES_PATH = window.SHAPES_PATH || 'shapes';
@@ -46,6 +49,9 @@ window.ICONSEARCH_PATH = window.ICONSEARCH_PATH || (((navigator.userAgent != nul
 window.TEMPLATE_PATH = window.TEMPLATE_PATH || 'templates';
 window.NEW_DIAGRAM_CATS_PATH = window.NEW_DIAGRAM_CATS_PATH || 'newDiagramCats';
 window.PLUGINS_BASE_PATH = window.PLUGINS_BASE_PATH || '';
+
+// Allows third-party plugins to run
+window.ALLOW_CUSTOM_PLUGINS = window.ALLOW_CUSTOM_PLUGINS || false;
 
 // Directory for i18 files and basename for main i18n file
 window.RESOURCES_PATH = window.RESOURCES_PATH || 'resources';
@@ -132,6 +138,8 @@ window.mxLanguageMap = window.mxLanguageMap ||
 	'gl' : 'Galego',
 	'it' : 'Italiano',
 	'hu' : 'Magyar',
+	'lt' : 'Lietuvių',
+	'lv' : 'Latviešu',
 	'nl' : 'Nederlands',
 	'no' : 'Norsk',
 	'pl' : 'Polski',
@@ -174,6 +182,33 @@ if (window.mxLanguages == null)
 		if (lang != 'en')
 		{
 			window.mxLanguages.push(lang);
+		}
+	}
+
+	// Uses browser language if supported
+	if (window.mxLanguage == null &&
+		(window.location.hostname == 'test.draw.io' ||
+		window.location.hostname == 'www.draw.io' ||
+		window.location.hostname == 'viewer.diagrams.net' ||
+		window.location.hostname == 'embed.diagrams.net' ||
+		window.location.hostname == 'app.diagrams.net' ||
+		window.location.hostname == 'jgraph.github.io'))
+	{
+		var lang = navigator.language;
+
+		if (lang != null)
+		{
+			var dash = lang.indexOf('-');
+				
+			if (dash > 0)
+			{
+				lang = lang.substring(0, dash);
+			}
+
+			if (window.mxLanguages.indexOf(lang) >= 0)
+			{
+				window.mxLanguage = lang;
+			}
 		}
 	}
 }
@@ -289,7 +324,11 @@ window.uiTheme = window.uiTheme || (function()
 		urlParams['sketch'] = '1';
 		ui = 'min';
 	}
-		
+	else if (urlParams['dark'] == '1' && (ui == '' || ui == 'kennedy'))
+	{
+		ui = 'dark';
+	}
+	
 	return ui;
 })();
 

@@ -46,9 +46,6 @@ abstract public class AbsAuthServlet extends HttpServlet
 	protected static final int STATE_COOKIE_AGE = 600; //10 min
 	protected static final int TOKEN_COOKIE_AGE = 31536000; //One year
 	public static boolean IS_GAE = (System.getProperty("com.google.appengine.runtime.version") == null) ? false : true;
-	public static String SECRETS_DIR_PATH = IS_GAE ? "/WEB-INF/secrets/" : "/WEB-INF/";
-
-	
 	
 	public static final SecureRandom random = new SecureRandom();
 	protected static Cache tokenCache;
@@ -207,21 +204,15 @@ abstract public class AbsAuthServlet extends HttpServlet
 			return true;
 		}
 	
-		if (url.startsWith("/")) // /somePage.html
-		{
-			return false;
-		}
-	
-		boolean result = false;
-	
 		try 
 		{
 			URI uri = new URI(url);
-			result = uri.isAbsolute();
+			return uri.isAbsolute();
 		}
-		catch (URISyntaxException e) {} //Ignore
-	
-		return result;
+		catch (URISyntaxException e) 
+		{
+			return true; // Block malformed URLs also
+		}
 	}
 
 	/**

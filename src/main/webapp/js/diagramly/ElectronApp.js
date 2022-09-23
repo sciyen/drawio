@@ -1,9 +1,9 @@
 window.PLUGINS_BASE_PATH = '.';
 window.TEMPLATE_PATH = 'templates';
-window.DRAW_MATH_URL = 'math';
+window.DRAW_MATH_URL = 'math/es5';
 window.DRAWIO_BASE_URL = '.'; //Prevent access to online website since it is not allowed
 FeedbackDialog.feedbackUrl = 'https://log.draw.io/email';
-
+EditorUi.draftSaveDelay = 5000;
 //Disables eval for JS (uses shapes-14-6-5.min.js)
 mxStencilRegistry.allowEval = false;
 
@@ -85,13 +85,15 @@ mxStencilRegistry.allowEval = false;
 	var oldWindowOpen = window.open;
 	window.open = async function(url)
 	{
-		if (url != null && url.startsWith('http'))
+		// Only open a native electron window when url is empty. We use this in our code in several places.
+		if (url == null)
 		{
-			await requestSync({action: 'openExternal', url: url});
+			return oldWindowOpen(url);
 		}
 		else
 		{
-			return oldWindowOpen(url);
+			// Open external will filter urls based on their protocol
+			await requestSync({action: 'openExternal', url: url});
 		}
 	}
 
@@ -99,53 +101,93 @@ mxStencilRegistry.allowEval = false;
 	
 	App.main = async function()
 	{
+		// Set AutoSave delay
+		var draftSaveDelay = mxSettings.getDraftSaveDelay();
+		
+		if (draftSaveDelay != null)
+		{
+			EditorUi.draftSaveDelay = draftSaveDelay * 1000;
+			EditorUi.enableDrafts = draftSaveDelay > 0;
+		}
+
 		//Load desktop plugins
 		var plugins = (mxSettings.settings != null) ? mxSettings.getPlugins() : null;
 		App.initPluginCallback();
 
 		if (plugins != null && plugins.length > 0)
 		{
-			for (var i = 0; i < plugins.length; i++)
+			// Workaround for body not defined if plugins are used in dev mode
+			if (urlParams['dev'] == '1')
 			{
-				try
+				EditorUi.debug('App.main', 'Skipped plugins', plugins);
+			}
+			else
+			{
+				for (var i = 0; i < plugins.length; i++)
 				{
-					if (plugins[i].startsWith('/plugins/'))
+					try
 					{
-						plugins[i] = '.' + plugins[i];
+						if (plugins[i].indexOf('..') >= 0)
+						{
+							continue;
+						}
+						else if (plugins[i].startsWith('/plugins/'))
+						{
+							plugins[i] = '.' + plugins[i];
+						}
+						else if (plugins[i].startsWith('plugins/'))
+						{
+							plugins[i] = './' + plugins[i];
+						}
+						else
+						{
+							let pluginFile = await requestSync({
+								action: 'getPluginFile',
+								plugin: plugins[i]
+							});
+							
+							if (pluginFile != null)
+							{
+								plugins[i] = 'file://' + pluginFile;
+							}
+							else
+							{
+								continue; //skip not found files
+							}
+						}
+
+						try
+						{
+							mxscript(plugins[i]);
+						}
+						catch (e)
+						{
+							// ignore
+						}
 					}
-					else if (plugins[i].startsWith('plugins/'))
+					catch (e)
 					{
-						plugins[i] = './' + plugins[i];
+						// ignore
 					}
-					//Support old plugins added using file:// workaround
-					else if (!plugins[i].startsWith('file://'))
-					{
-						let appFolder = await requestSync('getAppDataFolder');
-						
-			        	let pluginsFile = await requestSync({
-							action: 'checkFileExists',
-							pathParts: [appFolder, '/plugins', plugins[i]]
-						});
-			        	
-			        	if (pluginsFile.exists)
-			        	{
-			        		plugins[i] = 'file://' + pluginsFile.path;
-			        	}
-			        	else
-		        		{
-			        		continue; //skip not found files
-		        		}
-					}
-						
-					mxscript(plugins[i]);
-				}
-				catch (e)
-				{
-					// ignore
 				}
 			}
 		}
 		
+		//Remove old relaxed CSP and add strict one
+		var allMeta = document.getElementsByTagName('meta');
+
+		for (var i = 0; i < allMeta.length; i++)
+		{
+			if (allMeta[i].getAttribute('http-equiv') == 'Content-Security-Policy')
+			{
+				allMeta[i].parentNode.removeChild(allMeta[i]);
+			}
+
+			break;
+		}
+
+		mxmeta(null, 'default-src \'self\'; connect-src \'self\' https://fonts.googleapis.com https://fonts.gstatic.com; img-src * data:; media-src *; font-src *; style-src \'self\' \'unsafe-inline\' https://fonts.googleapis.com', 'Content-Security-Policy');
+
 		//Disable web plugins loading
 		urlParams['plugins'] = '0';
 		origAppMain.apply(this, arguments);
@@ -269,25 +311,25 @@ mxStencilRegistry.allowEval = false;
 		var editorUi = this;
 		var graph = this.editor.graph;
 		
-		window.__emt_isModified = function()
+		electron.registerMsgListener('isModified', () =>
 		{
-			if (editorUi.getCurrentFile())
+			const currentFile = editorUi.getCurrentFile();
+			let reply = {isModified: false, draftPath: null};
+
+			if (currentFile != null)
 			{
-				return editorUi.getCurrentFile().isModified()
+				reply.isModified = currentFile.isModified();
+				reply.draftPath = EditorUi.enableDrafts && currentFile.fileObject? currentFile.fileObject.draftFileName : null;
 			}
 
-			return false
-		};
-		
-		window.__emt_removeDraft = function()
-		{
-			var currentFile = editorUi.getCurrentFile();
+			electron.sendMessage('isModified-result', reply);
+		});
 
-			if (currentFile != null && EditorUi.enableDrafts)
-			{
-				currentFile.removeDraft();
-			}
-		};
+		electron.registerMsgListener('removeDraft', () =>
+		{
+			editorUi.getCurrentFile().removeDraft();
+			electron.sendMessage('draftRemoved', {});
+		});
 
 		// Adds support for libraries
 		this.actions.addAction('newLibrary...', mxUtils.bind(this, function()
@@ -590,7 +632,19 @@ mxStencilRegistry.allowEval = false;
 		
 		editorUi.actions.addAction('plugins...', function()
 		{
-			editorUi.showDialog(new PluginsDialog(editorUi, function(callback)
+			var pluginsMap = {};
+			//Initialize it with plugins in settings
+			var plugins = (mxSettings.settings != null) ? mxSettings.getPlugins() : null;
+
+			if (plugins != null)
+			{
+				for (var i = 0; i < plugins.length; i++)
+				{
+					pluginsMap[plugins[i]] = true;
+				}
+			}
+
+			editorUi.showDialog(new PluginsDialog(editorUi, async function(callback)
 			{
 				var div = document.createElement('div');
 				
@@ -604,9 +658,13 @@ mxStencilRegistry.allowEval = false;
 				
 				for (var i = 0; i < App.publicPlugin.length; i++)
 				{
+					var p = App.publicPlugin[i];
+
+					if  (pluginsMap[App.pluginRegistry[p]]) continue;
+
 					var option = document.createElement('option');
-					mxUtils.write(option, App.publicPlugin[i]);
-					option.value = App.publicPlugin[i];
+					mxUtils.write(option, p);
+					option.value = p;
 					pluginsSelect.appendChild(option);
 				}
 				
@@ -618,63 +676,89 @@ mxStencilRegistry.allowEval = false;
 				mxUtils.write(title, mxResources.get('extPlugins') + ': ');
 				div.appendChild(title);
 				
-				var extPluginsBtn = mxUtils.button(mxResources.get('selectFile') + '...', async function()
+				if (await requestSync('isPluginsEnabled'))
 				{
-					var lastDir = localStorage.getItem('.lastPluginDir');
-					
-					var paths = await requestSync({
-						action: 'showOpenDialog',
-						defaultPath: lastDir || (await requestSync('getDocumentsFolder')),
-						filters: [
-							{ name: 'draw.io Plugins', extensions: ['js'] },
-							{ name: 'All Files', extensions: ['*'] }
-						],
-						properties: ['openFile']
-					});
-				           
-			        if (paths !== undefined && paths[0] != null)
-			        {
-						try
-						{
-							let ret = await requestSync({
-								action: 'installPlugin',
-								filePath: paths[0]
-							});
+					var extPluginsBtn = mxUtils.button(mxResources.get('selectFile') + '...', async function()
+					{
+						var warningMsgs = mxResources.get('pluginWarning').split('\\n');
+						var warningMsg = warningMsgs.pop(); //Last line in the message
 
-							localStorage.setItem('.lastPluginDir', ret.selDir);
-							callback(ret.pluginName);
-							editorUi.hideDialog();
-						}
-						catch (e)
+						if (!warningMsg) 
 						{
-							if (e.message == 'fileExists')
+							warningMsg = warningMsgs.pop();
+						}
+
+						if (!confirm(warningMsg)) 
+						{
+							return;
+						}
+						
+						var lastDir = localStorage.getItem('.lastPluginDir');
+						
+						var paths = await requestSync({
+							action: 'showOpenDialog',
+							defaultPath: lastDir || (await requestSync('getDocumentsFolder')),
+							filters: [
+								{ name: 'draw.io Plugins', extensions: ['js'] },
+								{ name: 'All Files', extensions: ['*'] }
+							],
+							properties: ['openFile']
+						});
+							
+						if (paths !== undefined && paths[0] != null)
+						{
+							try
 							{
-								alert(mxResources.get('fileExists'));
+								let ret = await requestSync({
+									action: 'installPlugin',
+									filePath: paths[0]
+								});
+
+								localStorage.setItem('.lastPluginDir', ret.selDir);
+								callback(ret.pluginName);
+								editorUi.hideDialog();
 							}
-							else
+							catch (e)
 							{
-								alert('Adding plugin failed.');
+								if (e.message == 'fileExists')
+								{
+									alert(mxResources.get('fileExists'));
+								}
+								else
+								{
+									alert('Adding plugin failed.');
+								}
 							}
 						}
-			        }
-				});
-				
-				extPluginsBtn.className = 'geBtn';
-				div.appendChild(extPluginsBtn);
+					});
+					
+					extPluginsBtn.className = 'geBtn';
+					div.appendChild(extPluginsBtn);
+				}
+				else
+				{
+					title = document.createElement('span');
+					mxUtils.write(title, mxResources.get('pluginsDisabled'));
+					div.appendChild(title);
+				}
 							
 				var dlg = new CustomDialog(editorUi, div, mxUtils.bind(this, function()
 				{
-	        		callback(App.pluginRegistry[pluginsSelect.value]);
+					var newP = App.pluginRegistry[pluginsSelect.value];
+					pluginsMap[newP] = true;
+	        		callback(newP);
 				}));
 				editorUi.showDialog(dlg.container, 300, 125, true, true);
 			},
 			async function(plugin)
 			{
+				delete pluginsMap[plugin];
+				
 				await requestSync({
 					action: 'uninstallPlugin',
 					plugin: plugin
 				});
-			}).container, 360, 225, true, false);
+			}, true).container, 360, 225, true, false);
 		});
 	}
 	
@@ -831,52 +915,43 @@ mxStencilRegistry.allowEval = false;
 			
 			if (file.fileObject != null)
 			{
-				var title = file.fileObject.path;
-				
-				if (title.length > 100)
-				{
-					title = '...' + title.substr(title.length - 97);
-				}
-				
-				this.addRecent({id: file.fileObject.path, title: title});
+				file.addToRecent();
 			
 				await requestSync({
 					action: 'watchFile', 
 					path: file.fileObject.path,
 					listener: mxUtils.bind(this, function(curr, prev) 
 					{
+						EditorUi.debug('EditorUi.watchFile', [this],
+							'file', [file], 'stat', [file.stat],
+							'curr', [curr], 'prev', [prev],
+							'inConflictState', file.inConflictState,
+							'unwatchedSaves', file.unwatchedSaves);
+						
 						//File is changed (not just accessed) && File is not already in a conflict state
 						if (curr.mtimeMs != prev.mtimeMs && !file.inConflictState)
 						{
 							//Ignore our own changes
-							if (file.unwatchedSaves || (file.state != null && file.stat.mtimeMs == curr.mtimeMs))
+							if (file.unwatchedSaves || (file.stat != null && file.stat.mtimeMs == curr.mtimeMs))
 							{
 								file.unwatchedSaves = false;
 								return;
 							}
 							
 							file.inConflictState = true;
-							
-							this.showError(mxResources.get('externalChanges'),
-								mxResources.get('fileChangedSyncDialog'),
-								mxResources.get('synchronize'), mxUtils.bind(this, function()
+
+							file.addConflictStatus(mxUtils.bind(this, function()
+							{
+								file.ui.editor.setStatus(mxUtils.htmlEntities(
+									mxResources.get('updatingDocument')));
+								file.synchronizeFile(mxUtils.bind(this, function()
 								{
-									if (this.spinner.spin(document.body, mxResources.get('updatingDocument')))
-									{
-										file.synchronizeFile(mxUtils.bind(this, function()
-										{
-											this.spinner.stop();
-										}), mxUtils.bind(this, function(err)
-										{
-											file.handleFileError(err, true);
-										}));
-									}
-								}), null, null, null,
-								mxResources.get('cancel'), mxUtils.bind(this, function()
+									file.handleFileSuccess(false);
+								}), mxUtils.bind(this, function(err)
 								{
-									this.hideDialog();
-									file.handleFileError(null, false);
-								}), 340, 150);
+									file.handleFileError(err, true);
+								}));
+							}));
 						}
 					})
 				});
@@ -1162,7 +1237,7 @@ mxStencilRegistry.allowEval = false;
 		{
 			this.ui.readGraphFile(mxUtils.bind(this, function(fileEntry, data, stat, name, isModified)
 			{
-				var file = new LocalFile(this, data, '');
+				var file = new LocalFile(this.ui, data, '');
 				file.stat = stat;
 				file.setModified(isModified? true : false);
 				success(file);
@@ -1278,6 +1353,12 @@ mxStencilRegistry.allowEval = false;
 
 	LocalFile.prototype.save = function(revision, success, error, unloading, overwrite)
 	{
+		if (!this.isEditable())
+		{
+			this.saveAs(this.title, success, error);
+			return;
+		}
+
 		DrawioFile.prototype.save.apply(this, [revision, mxUtils.bind(this, function()
 		{
 			this.saveFile(revision, mxUtils.bind(this, function() 
@@ -1452,6 +1533,7 @@ mxStencilRegistry.allowEval = false;
 					this.fileObject.path = path;
 					this.fileObject.name = path.replace(/^.*[\\\/]/, '');
 					this.fileObject.type = 'utf-8';
+					this.addToRecent();
 					fn();
 				}
 		        else
@@ -1464,6 +1546,20 @@ mxStencilRegistry.allowEval = false;
 				fn();
 			}
 		}
+	};
+
+	LocalFile.prototype.addToRecent = function()
+	{
+		if (this.fileObject == null) return;
+
+		var title = this.fileObject.path;
+				
+		if (title.length > 100)
+		{
+			title = '...' + title.substr(title.length - 97);
+		}
+
+		this.ui.addRecent({id: this.fileObject.path, title: title});
 	};
 
 	LocalFile.prototype.saveAs = async function(title, success, error)
@@ -1497,6 +1593,7 @@ mxStencilRegistry.allowEval = false;
 			this.fileObject.path = path;
 			this.fileObject.name = path.replace(/^.*[\\\/]/, '');
 			this.fileObject.type = 'utf-8';
+			this.addToRecent();
 			this.setEditable(true); //In case original file is read only
 			this.save(false, success, error, null, true);
 		}
@@ -1711,7 +1808,17 @@ mxStencilRegistry.allowEval = false;
 	{
 		electron.sendMessage('toggleSpellCheck');
 	}
+
+	App.prototype.toggleStoreBkp = function()
+	{
+		electron.sendMessage('toggleStoreBkp');
+	}
 	
+	App.prototype.openDevTools = function()
+	{
+		electron.sendMessage('openDevTools');
+	}
+
 	var origUpdateHeader = App.prototype.updateHeader;
 	
 	App.prototype.updateHeader = function()
