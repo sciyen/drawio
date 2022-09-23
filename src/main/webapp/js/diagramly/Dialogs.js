@@ -127,7 +127,11 @@ var StorageDialog = function(editorUi, fn, rowLimit)
 						editorUi.spinner.stop();
 						editorUi.setMode(mode, true);
 						fn();
-					}));
+					}), function(err)
+					{
+						editorUi.spinner.stop();
+						editorUi.handleError(err);
+					});
 				}
 				else
 				{
@@ -238,11 +242,6 @@ var StorageDialog = function(editorUi, fn, rowLimit)
 		{
 			addLogo(IMAGE_PATH + '/gitlab-logo.svg', mxResources.get('gitlab'), App.MODE_GITLAB, 'gitLab');
 		}
-		
-		if (totalBtns < 6 && editorUi.notion != null)
-		{
-			addLogo(IMAGE_PATH + '/notion-logo.svg', mxResources.get('notion'), App.MODE_NOTION, 'notion');
-		}
 	};
 	
 	div.appendChild(buttons);
@@ -304,11 +303,11 @@ var SplashDialog = function(editorUi)
 	
 	if (mxClient.IS_CHROMEAPP || EditorUi.isElectronApp)
 	{
-		var elt = editorUi.addLanguageMenu(div, true);
+		var elt = editorUi.addLanguageMenu(div, false, '28px');
 		
 		if (elt != null)
 		{
-			elt.style.bottom = '19px';
+			elt.style.bottom = '24px';
 		}
 	}
 	
@@ -350,11 +349,6 @@ var SplashDialog = function(editorUi)
 	{
 		logo.src = IMAGE_PATH + '/gitlab-logo.svg';
 		service = mxResources.get('gitlab');
-	}
-	else if (editorUi.mode == App.MODE_NOTION)
-	{
-		logo.src = IMAGE_PATH + '/notion-logo.svg';
-		service = mxResources.get('notion');
 	}
 	else if (editorUi.mode == App.MODE_BROWSER)
 	{
@@ -478,10 +472,6 @@ var SplashDialog = function(editorUi)
 	else if (editorUi.mode == App.MODE_GITLAB)
 	{
 		storage = mxResources.get('gitlab');
-	}
-	else if (editorUi.mode == App.MODE_NOTION)
-	{
-		storage = mxResources.get('notion');
 	}
 	else if (editorUi.mode == App.MODE_TRELLO)
 	{
@@ -619,13 +609,6 @@ var SplashDialog = function(editorUi)
 			{
 				editorUi.gitLab.logout();
 				editorUi.openLink(DRAWIO_GITLAB_URL + '/users/sign_out');
-			});
-		}
-		else if (editorUi.mode == App.MODE_NOTION && editorUi.notion != null)
-		{
-			addLogout(function()
-			{
-				editorUi.notion.logout();
 			});
 		}
 		else if (editorUi.mode == App.MODE_TRELLO && editorUi.trello != null)
@@ -909,16 +892,12 @@ var EmbedDialog = function(editorUi, result, timeout, ignoreSize, previewFn, tit
 		});
 		
 		var img = document.createElement('img');
+		img.className = 'geAdaptiveAsset';
 		img.setAttribute('src', Editor.mailImage);
 		img.setAttribute('width', '18');
 		img.setAttribute('height', '18');
 		img.setAttribute('border', '0');
 		img.style.marginBottom = '5px'
-		
-		if (Editor.isDarkMode())
-		{
-			img.style.filter = 'invert(100%)';
-		}
 
 		emailBtn.appendChild(img);
 		emailBtn.style.verticalAlign = 'bottom';
@@ -1423,14 +1402,14 @@ var CreateGraphDialog = function(editorUi, title, type)
 		{
 			layout = new mxHierarchicalLayout(graph, mxConstants.DIRECTION_WEST);
 		}
-		else if (type == 'organic')
-		{
-			layout = new mxFastOrganicLayout(graph, false);
-			layout.forceConstant = 80;
-		}
 		else if (type == 'circle')
 		{
 			layout = new mxCircleLayout(graph);
+		}
+		else
+		{
+			layout = new mxFastOrganicLayout(graph, false);
+			layout.forceConstant = 80;
 		}
 		
 		if (layout != null)
@@ -1585,11 +1564,11 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 	var urlInput = document.createElement('input');
 	urlInput.setAttribute('type', 'text');
 	urlInput.style.marginBottom = '8px';
-	urlInput.style.width = '320px';
+	urlInput.style.width = '360px';
 	urlInput.value = (isPageLink || img == null) ? '' : img.src;
 	
 	var pageSelect = document.createElement('select');
-	pageSelect.style.width = '320px';
+	pageSelect.style.width = '360px';
 
 	if (editorUi.pages != null)
 	{
@@ -1623,6 +1602,7 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 		pageSelect.style.display = 'none';
 	}
 
+	var notFoundOption = document.createElement('option');
 	var resetting = false;
 	var ignoreEvt = false;
 	
@@ -1635,7 +1615,7 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 			{
 				if (done != null)
 				{
-					done(pageSelect.value);
+					done((notFoundOption.selected) ? null : pageSelect.value);
 				}
 			}
 			else if (urlInput.value != '' && !editorUi.isOffline())
@@ -1675,6 +1655,30 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 			}
 		}
 	};
+
+	var openFiles = mxUtils.bind(this, function(files)
+	{
+		editorUi.importFiles(files, 0, 0, editorUi.maxBackgroundSize, function(data, mimeType, x, y, w, h)
+		{
+			urlInput.value = data;
+			urlChanged();
+			urlInput.focus();
+		}, function()
+		{
+			// No post processing
+		}, function(file)
+		{
+			// Handles only images
+			return file.type.substring(0, 6) == 'image/';
+		}, function(queue)
+		{
+			// Invokes elements of queue in order
+			for (var i = 0; i < queue.length; i++)
+			{
+				queue[i]();
+			}
+		}, true, editorUi.maxBackgroundBytes, editorUi.maxBackgroundBytes, true);
+	});
 
 	this.init = function()
 	{
@@ -1745,25 +1749,7 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 
 			    if (evt.dataTransfer.files.length > 0)
 			    {
-			    	editorUi.importFiles(evt.dataTransfer.files, 0, 0, editorUi.maxBackgroundSize, function(data, mimeType, x, y, w, h)
-			    	{
-			    		urlInput.value = data;
-			    		urlChanged();
-			    	}, function()
-			    	{
-			    		// No post processing
-			    	}, function(file)
-			    	{
-			    		// Handles only images
-			    		return file.type.substring(0, 6) == 'image/';
-			    	}, function(queue)
-			    	{
-			    		// Invokes elements of queue in order
-			    		for (var i = 0; i < queue.length; i++)
-			    		{
-			    			queue[i]();
-			    		}
-			    	}, true, editorUi.maxBackgroundBytes, editorUi.maxBackgroundBytes, true);
+			    	openFiles(evt.dataTransfer.files);
 	    		}
 			    else if (mxUtils.indexOf(evt.dataTransfer.types, 'text/uri-list') >= 0)
 			    {
@@ -1851,7 +1837,6 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 
 	if (!pageFound && pageRadio.checked)
 	{
-		var notFoundOption = document.createElement('option');
 		mxUtils.write(notFoundOption, mxResources.get('pageNotFound'));
 		notFoundOption.setAttribute('disabled', 'disabled');
 		notFoundOption.setAttribute('selected', 'selected');
@@ -1870,6 +1855,19 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 	var btns = document.createElement('div');
 	btns.style.marginTop = '30px';
 	btns.style.textAlign = 'right';
+
+	var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
+	{
+		resetting = true;
+		editorUi.hideDialog();
+	});
+	
+	cancelBtn.className = 'geBtn';
+	
+	if (editorUi.editor.cancelFirst)
+	{
+		btns.appendChild(cancelBtn);
+	}
 	
 	var resetBtn = mxUtils.button(mxResources.get('reset'), function()
 	{
@@ -1888,17 +1886,35 @@ var BackgroundImageDialog = function(editorUi, applyFn, img)
 	resetBtn.width = '100';
 	btns.appendChild(resetBtn);
 
-	var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
+	if (Graph.fileSupport)
 	{
-		resetting = true;
-		editorUi.hideDialog();
-	});
-	
-	cancelBtn.className = 'geBtn';
-	
-	if (editorUi.editor.cancelFirst)
-	{
-		btns.appendChild(cancelBtn);
+		var fileInput = document.createElement('input');
+		fileInput.setAttribute('multiple', 'multiple');
+		fileInput.setAttribute('type', 'file');
+		
+		mxEvent.addListener(fileInput, 'change', function(evt)
+		{
+			if (fileInput.files != null)
+			{
+				openFiles(fileInput.files);
+				
+				// Resets input to force change event for same file (type reset required for IE)
+				fileInput.type = '';
+				fileInput.type = 'file';
+				fileInput.value = '';
+			}
+		});
+		
+		fileInput.style.display = 'none';
+		div.appendChild(fileInput);
+		
+		var btn = mxUtils.button(mxResources.get('open'), function()
+		{
+			fileInput.click();
+		});
+
+		btn.className = 'geBtn';
+		btns.appendChild(btn);
 	}
 
 	applyBtn = mxUtils.button(mxResources.get('apply'), function()
@@ -2661,10 +2677,6 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 	{
 		logo.src = IMAGE_PATH + '/gitlab-logo.svg';
 	}
-	else if (editorUi.mode == App.MODE_NOTION)
-	{
-		logo.src = IMAGE_PATH + '/notion-logo.svg';
-	}
 	else if (editorUi.mode == App.MODE_TRELLO)
 	{
 		logo.src = IMAGE_PATH + '/trello-logo.svg';
@@ -2710,10 +2722,6 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 	else if (editorUi.mode == App.MODE_GITLAB && editorUi.gitLab != null)
 	{
 		ext = editorUi.gitLab.extension;
-	}
-	else if (editorUi.mode == App.MODE_NOTION && editorUi.notion != null)
-	{
-		ext = editorUi.notion.extension;
 	}
 	else if (editorUi.mode == App.MODE_TRELLO && editorUi.trello != null)
 	{
@@ -2869,7 +2877,7 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 			setActiveTab(0);
 
 			div.scrollTop = 0;
-			div.innerHTML = '';
+			div.innerText = '';
 			i0 = 0;
 			
 			if (oldTemplates != templates)
@@ -2877,7 +2885,7 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 				templates = oldTemplates;
 				categories = origCategories;
 				customCatCount = origCustomCatCount;
-				list.innerHTML = '';
+				list.innerText = '';
 				initUi();	
 				oldTemplates = null;
 			}
@@ -2900,7 +2908,7 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 			}
 			
 			div.scrollTop = 0;
-			div.innerHTML = '';
+			div.innerText = '';
 			spinner.spin(div);
 
 			var callback2 = function(docList, errorMsg, searchImportCats) 
@@ -2918,21 +2926,21 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 				
 				if (errorMsg)
 				{
-					div.innerHTML = errorMsg;
+					div.innerText = errorMsg;
 				}
 				else if (docList.length == 0 && importListsCount == 0)
 				{
-					div.innerHTML = mxUtils.htmlEntities(mxResources.get('noDiagrams', null, 'No Diagrams Found'));
+					div.innerText = mxResources.get('noDiagrams', null, 'No Diagrams Found');
 				}
 				else
 				{
-					div.innerHTML = '';
+					div.innerText = '';
 					
 					if (importListsCount > 0)
 					{
 						list.style.display = '';
 						div.style.left = '160px';
-						list.innerHTML = '';
+						list.innerText = '';
 
 						customCatCount = 0;
 						categories = {'draw.io': docList};
@@ -2976,7 +2984,7 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 		{
 			var searchTab = document.createElement('span');
 			searchTab.style.marginLeft = '10px';
-			searchTab.innerHTML = mxUtils.htmlEntities(mxResources.get('search') + ':');
+			searchTab.innerText = mxResources.get('search') + ':';
 			tabs.appendChild(searchTab);
 
 			var searchInput = document.createElement('input');
@@ -3170,16 +3178,11 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 	function addButton(url, libs, title, tooltip, select, imgUrl, infoObj, onClick, preview, noImg, clibs)
 	{
 		var elt = document.createElement('div');
-		elt.className = 'geTemplate';
+		elt.className = 'geTemplate geAdaptiveAsset';
 		elt.style.position = 'relative';
 		elt.style.height = w + 'px';
 		elt.style.width = h + 'px';
 		var xmlData = null, realUrl = url;
-	
-		if (Editor.isDarkMode())
-		{
-			elt.style.filter = 'invert(100%)';
-		}
 		
 		if (title != null)
 		{
@@ -3616,7 +3619,7 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 		}
 		
 		div.scrollTop = 0;
-		div.innerHTML = '';
+		div.innerText = '';
 		i0 = 0;
 		var msgDiv = document.createElement('div');
 		msgDiv.style.cssText = 'border: 1px solid #D3D3D3; padding: 6px; background: #F5F5F5;';
@@ -3692,7 +3695,7 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 							currentEntry.style.backgroundColor = leftHighlight;
 							
 							div.scrollTop = 0;
-							div.innerHTML = '';
+							div.innerText = '';
 							i0 = 0;
 							
 							templates = customCats[cat2];
@@ -3737,7 +3740,7 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 					currentEntry.style.backgroundColor = leftHighlight;
 					
 					div.scrollTop = 0;
-					div.innerHTML = '';
+					div.innerText = '';
 					i0 = 0;
 					
 					templates = subCat? subCategories[cat][subCat] : categories[cat];
@@ -4024,8 +4027,8 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 		btns.appendChild(cancelBtn);
 	}
 
-	if (!compact && urlParams['embed'] != '1' && !createOnly && 
-			!mxClient.IS_ANDROID && !mxClient.IS_IOS && urlParams['noDevice'] != '1')
+	if (!compact && urlParams['embed'] != '1' && !createOnly && !mxClient.IS_ANDROID &&
+		!mxClient.IS_IOS && urlParams['noDevice'] != '1')
 	{
 		var fromTmpBtn = mxUtils.button(mxResources.get('fromTemplateUrl'), function()
 		{
@@ -4033,20 +4036,20 @@ var NewDialog = function(editorUi, compact, showName, callback, createOnly, canc
 			{
 				if (fileUrl != null && fileUrl.length > 0)
 				{
-					var url = editorUi.getUrl(window.location.pathname + '?mode=' + editorUi.mode +
-							'&title=' + encodeURIComponent(nameInput.value) +
-							'&create=' + encodeURIComponent(fileUrl));
-					
-					if (editorUi.getCurrentFile() == null)
+					editorUi.editor.loadUrl(editorUi.editor.getProxiedUrl(fileUrl), function(data)
 					{
-						window.location.href = url;
-					}
-					else
+						templateXml = data;
+						templateLibs = null;
+						templateRealURl = fileUrl;
+
+						editorUi.hideDialog();
+						create();
+					}, function(err)
 					{
-						window.openWindow(url);
-					}
+						editorUi.handleError(err);
+					});
 				}
-			}, mxResources.get('url'));
+			}, mxResources.get('url'), null, null, null, false);
 			editorUi.showDialog(dlg.container, 300, 80, true, true);
 			dlg.init();
 		});
@@ -4395,16 +4398,6 @@ var CreateDialog = function(editorUi, title, createFn, cancelFn, dlgTitle, btnLa
 			addLogo(IMAGE_PATH + '/gitlab-logo.svg', mxResources.get('gitlab'), App.MODE_GITLAB, 'gitLab');
 		}
 
-		if (editorUi.notion != null)
-		{
-			var notionOption = document.createElement('option');
-			notionOption.setAttribute('value', App.MODE_NOTION);
-			mxUtils.write(notionOption, mxResources.get('notion'));
-			serviceSelect.appendChild(notionOption);
-
-			addLogo(IMAGE_PATH + '/notion-logo.svg', mxResources.get('notion'), App.MODE_NOTION, 'notion');
-		}
-		
 		if (typeof window.TrelloClient === 'function')
 		{
 			var trelloOption = document.createElement('option');
@@ -4473,10 +4466,6 @@ var CreateDialog = function(editorUi, title, createFn, cancelFn, dlgTitle, btnLa
 				else if (newMode == App.MODE_GITLAB)
 				{
 					ext = editorUi.gitLab.extension;
-				}
-				else if (newMode == App.MODE_NOTION)
-				{
-					ext = editorUi.notion.extension;
 				}
 				else if (newMode == App.MODE_TRELLO)
 				{
@@ -5490,7 +5479,7 @@ var LinkDialog = function(editorUi, initialValue, btnLabel, fn, showPages, showN
 			{
 				linkInput.value = files.value[0].webUrl;
 				linkInput.focus();
-			});
+			}, true);
 		});
 	}
 	
@@ -5538,7 +5527,6 @@ var LinkDialog = function(editorUi, initialValue, btnLabel, fn, showPages, showN
 		});
 	}
 
-	//TODO should Notion support this?
 	//TODO should Trello support this?
 	
 	mxEvent.addListener(linkInput, 'keypress', function(e)
@@ -5819,7 +5807,7 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 
 	if (Editor.MathJaxRender)
 	{
-		graph.addListener(mxEvent.SIZE, mxUtils.bind(this, function(sender, evt)
+		graph.model.addListener(mxEvent.CHANGE, mxUtils.bind(this, function(sender, evt)
 		{
 			// LATER: Math support is used if current graph has math enabled
 			// should use switch from history instead but requires setting the
@@ -5958,7 +5946,7 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 		// Gets current state of page with given ID
 		var curr = currentDiagrams[diagrams[currentPage].getAttribute('id')];
 		mxUtils.setOpacity(compareBtn, 20);
-		errorNode.innerHTML = '';
+		errorNode.innerText = '';
 
 		if (curr == null)
 		{
@@ -5980,7 +5968,7 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 	}, null, function()
 	{
 		mxUtils.setOpacity(compareBtn, 60);
-		errorNode.innerHTML = '';
+		errorNode.innerText = '';
 
 		if (container.style.display == 'none')
 		{
@@ -6235,14 +6223,14 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 					function updateGraph(xml)
 					{
 						spinner.stop();
-						errorNode.innerHTML = '';
+						errorNode.innerText = '';
 						var doc = mxUtils.parseXml(xml);
 						var node = editorUi.editor.extractGraphModel(doc.documentElement, true);
 
 						if (node != null)
 						{
 							pageSelect.style.display = 'none';
-							pageSelect.innerHTML = '';
+							pageSelect.innerText = '';
 							currentDoc = doc;
 							currentXml = xml;
 							parseSelectFunction = null;
@@ -6346,7 +6334,7 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 								shortUser = shortUser.substring(0, 20) + '...';
 							}
 							
-							fileInfo.innerHTML = '';
+							fileInfo.innerText = '';
 							mxUtils.write(fileInfo, ((shortUser != null) ?
 								(shortUser + ' ') : '') + ts.toLocaleDateString() +
 								' ' + ts.toLocaleTimeString());
@@ -6379,8 +6367,8 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 						else
 						{
 							pageSelect.style.display = 'none';
-							pageSelect.innerHTML = '';
-							fileInfo.innerHTML = '';
+							pageSelect.innerText = '';
+							fileInfo.innerText = '';
 							mxUtils.write(fileInfo, mxResources.get('errorLoadingFile'));
 							mxUtils.write(errorNode, mxResources.get('errorLoadingFile'));
 						}
@@ -6404,9 +6392,9 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 							currentXml = null;
 
 							fileInfo.removeAttribute('title');
-							fileInfo.innerHTML = mxUtils.htmlEntities(mxResources.get('loading') + '...');
+							fileInfo.innerText = mxResources.get('loading') + '...';
 							container.style.backgroundColor = graph.defaultPageBackgroundColor;
-							errorNode.innerHTML = '';
+							errorNode.innerText = '';
 							graph.getModel().clear();
 	
 							restoreBtn.setAttribute('disabled', 'disabled');
@@ -6439,16 +6427,15 @@ var RevisionDialog = function(editorUi, revs, restoreFn)
 									}
 									catch (e)
 									{
-										fileInfo.innerHTML = mxUtils.htmlEntities(
-											mxResources.get('error') + ': ' + e.message);
+										fileInfo.innerText = mxResources.get('error') + ': ' + e.message;
 									}
 								}
 				   			}, function(err)
 				   			{
 				   				spinner.stop();
 								pageSelect.style.display = 'none';
-								pageSelect.innerHTML = '';
-				   				fileInfo.innerHTML = '';
+								pageSelect.innerText = '';
+				   				fileInfo.innerText = '';
 								mxUtils.write(fileInfo, mxResources.get('errorLoadingFile'));
 								mxUtils.write(errorNode, mxResources.get('errorLoadingFile'));
 				   			});
@@ -6661,7 +6648,7 @@ var DraftDialog = function(editorUi, title, xml, editFn, discardFn, editLabel, d
 	// TODO: Enable per-page math
 //	if (Editor.MathJaxRender)
 //	{
-//		graph.addListener(mxEvent.SIZE, mxUtils.bind(this, function(sender, evt)
+//		graph.model.addListener(mxEvent.CHANGE, mxUtils.bind(this, function(sender, evt)
 //		{
 //			// LATER: Math support is used if current graph has math enabled
 //			// should use switch from history instead but requires setting the
@@ -6825,7 +6812,7 @@ var DraftDialog = function(editorUi, title, xml, editFn, discardFn, editLabel, d
 				parseDiagram(diagrams[currentPage]);
 			}
 
-			pageSelect.innerHTML = '';
+			pageSelect.innerText = '';
 			
 			if (diagrams.length > 1)
 			{
@@ -7046,7 +7033,7 @@ var FindWindow = function(ui, x, y, w, h, withReplace)
 				
 	function search(internalCall, trySameCell, stayOnPage)
 	{
-		replAllNotif.innerHTML = '';
+		replAllNotif.innerText = '';
 		var cells = graph.model.getDescendants(graph.model.getRoot());
 		var searchStr = searchInput.value.toLowerCase();
 		var re = (regexInput.checked) ? new RegExp(searchStr) : null;
@@ -7162,8 +7149,12 @@ var FindWindow = function(ui, x, y, w, h, withReplace)
 							if (re != null)
 							{
 								var result = label.match(re);
-								lblMatch = result[0].toLowerCase();
-								lblMatchPos = lblPosShift + result.index + lblMatch.length;
+
+								if (result != null && result.length > 0)
+								{
+									lblMatch = result[0].toLowerCase();
+									lblMatchPos = lblPosShift + result.index + lblMatch.length;
+								}
 							}
 							else
 							{
@@ -7248,7 +7239,7 @@ var FindWindow = function(ui, x, y, w, h, withReplace)
 
 	var resetBtn = mxUtils.button(mxResources.get('reset'), function()
 	{
-		replAllNotif.innerHTML = '';
+		replAllNotif.innerText = '';
 		searchInput.value = '';
 		searchInput.style.backgroundColor = '';
 		
@@ -7443,10 +7434,11 @@ var FindWindow = function(ui, x, y, w, h, withReplace)
 		
 		var replaceAllBtn = mxUtils.button(mxResources.get('replaceAll'), function()
 		{
-			replAllNotif.innerHTML = '';
+			replAllNotif.innerText = '';
 			
 			if (replaceInput.value)
 			{
+				lastSearch = null; // Reset last search to check all matches
 				var currentPage = ui.currentPage;
 				var cells = ui.editor.graph.getSelectionCells();
 				ui.editor.graph.rendering = false;
@@ -7610,41 +7602,13 @@ var FindWindow = function(ui, x, y, w, h, withReplace)
 		}
 	}));
 	
-	this.window.setLocation = function(x, y)
-	{
-		var iw = window.innerWidth || document.body.clientWidth || document.documentElement.clientWidth;
-		var ih = window.innerHeight || document.body.clientHeight || document.documentElement.clientHeight;
-		
-		x = Math.max(0, Math.min(x, iw - this.table.clientWidth));
-		y = Math.max(0, Math.min(y, ih - this.table.clientHeight - ((urlParams['sketch'] == '1') ? 3 : 48)));
-
-		if (this.getX() != x || this.getY() != y)
-		{
-			mxWindow.prototype.setLocation.apply(this, arguments);
-		}
-	};
-	
-	var resizeListener = mxUtils.bind(this, function()
-	{
-		var x = this.window.getX();
-		var y = this.window.getY();
-		
-		this.window.setLocation(x, y);
-	});
-	
-	mxEvent.addListener(window, 'resize', resizeListener);
-
-	this.destroy = function()
-	{
-		mxEvent.removeListener(window, 'resize', resizeListener);
-		this.window.destroy();
-	}
+	ui.installResizeHandler(this, false);
 };
 
 /**
  * 
  */
-var FreehandWindow = function(editorUi, x, y, w, h)
+var FreehandWindow = function(editorUi, x, y, w, h, withBrush)
 {
 	var graph = editorUi.editor.graph;
 
@@ -7653,6 +7617,50 @@ var FreehandWindow = function(editorUi, x, y, w, h)
 	div.style.userSelect = 'none';
 	div.style.overflow = 'hidden';
 	div.style.height = '100%';
+	
+	if (withBrush)
+	{
+		var brushInput = document.createElement('input');
+		brushInput.setAttribute('id', 'geFreehandBrush');
+		brushInput.setAttribute('type', 'checkbox');
+		brushInput.checked = graph.freehand.isPerfectFreehandMode();
+		brushInput.style.margin = '10px 5px 0px 10px';
+		brushInput.style.float = 'left';
+		div.appendChild(brushInput);
+		
+		var brushLabel = document.createElement('label');
+		brushLabel.setAttribute('for', 'geFreehandBrush');
+		brushLabel.style.float = 'left';
+		brushLabel.style.marginTop = '10px';
+		div.appendChild(brushLabel);
+		mxUtils.write(brushLabel, mxResources.get('brush'));
+		div.appendChild(brushLabel);
+		mxUtils.br(div);
+
+		var brushSize = document.createElement('input');
+		brushSize.setAttribute('type', 'range');
+		brushSize.setAttribute('min', '2');
+		brushSize.setAttribute('max', '30');
+		brushSize.setAttribute('value', graph.freehand.getBrushSize());
+		brushSize.style.width = '90%';
+		brushSize.style.visibility = 'hidden';
+		div.appendChild(brushSize);
+		mxUtils.br(div);
+
+		var updateBrushState = function()
+		{
+			graph.freehand.setPerfectFreehandMode(brushInput.checked)
+			brushSize.style.visibility = brushInput.checked? 'visible' : 'hidden';
+		};
+
+		mxEvent.addListener(brushInput, 'change', updateBrushState);
+		updateBrushState();
+
+		mxEvent.addListener(brushSize, 'change', function()
+		{
+			graph.freehand.setBrushSize(parseInt(this.value));
+		});
+	}
 	
 	var startBtn = mxUtils.button(mxResources.get('startDrawing'), function()
 	{
@@ -7667,7 +7675,7 @@ var FreehandWindow = function(editorUi, x, y, w, h)
 	});
 	
 	startBtn.setAttribute('title', mxResources.get('startDrawing'));
-	startBtn.style.marginTop = '10px';
+	startBtn.style.marginTop = withBrush? '5px' : '10px';
 	startBtn.style.width = '90%';
 	startBtn.style.boxSizing = 'border-box';
 	startBtn.style.overflow = 'hidden';
@@ -7685,10 +7693,17 @@ var FreehandWindow = function(editorUi, x, y, w, h)
 	
 	graph.addListener('freehandStateChanged', mxUtils.bind(this, function()
 	{
-		startBtn.innerHTML = '';
+		startBtn.innerText = '';
 		mxUtils.write(startBtn, mxResources.get(graph.freehand.isDrawing() ? 'stopDrawing' : 'startDrawing'));
+
+		var shortcut = document.createElement('span');
+		shortcut.style.opacity = '0.7';
+		shortcut.style['float'] = 'right';
+		mxUtils.write(shortcut, 'X');
+		startBtn.appendChild(shortcut);
+
 		startBtn.setAttribute('title', mxResources.get(graph.freehand.isDrawing() ? 'stopDrawing' : 'startDrawing'));
-		startBtn.className = 'geBtn' + (!graph.freehand.isDrawing() ? ' gePrimaryBtn' : '');
+		startBtn.className = 'geBtn' + (graph.freehand.isDrawing() ? ' gePrimaryBtn' : '');
 	}));
 	
 	this.window.addListener('show', mxUtils.bind(this, function()
@@ -7704,35 +7719,7 @@ var FreehandWindow = function(editorUi, x, y, w, h)
 		}
 	}));
 	
-	this.window.setLocation = function(x, y)
-	{
-		var iw = window.innerWidth || document.body.clientWidth || document.documentElement.clientWidth;
-		var ih = window.innerHeight || document.body.clientHeight || document.documentElement.clientHeight;
-		
-		x = Math.max(0, Math.min(x, iw - this.table.clientWidth));
-		y = Math.max(0, Math.min(y, ih - this.table.clientHeight - ((urlParams['sketch'] == '1') ? 3 : 48)));
-
-		if (this.getX() != x || this.getY() != y)
-		{
-			mxWindow.prototype.setLocation.apply(this, arguments);
-		}
-	};
-	
-	var resizeListener = mxUtils.bind(this, function()
-	{
-		var x = this.window.getX();
-		var y = this.window.getY();
-		
-		this.window.setLocation(x, y);
-	});
-	
-	mxEvent.addListener(window, 'resize', resizeListener);
-
-	this.destroy = function()
-	{
-		mxEvent.removeListener(window, 'resize', resizeListener);
-		this.window.destroy();
-	}
+	editorUi.installResizeHandler(this, false);
 };
 
 /**
@@ -7802,35 +7789,7 @@ var TagsWindow = function(editorUi, x, y, w, h)
 		this.window.fit();
 	}));
 	
-	this.window.setLocation = function(x, y)
-	{
-		var iw = window.innerWidth || document.body.clientWidth || document.documentElement.clientWidth;
-		var ih = window.innerHeight || document.body.clientHeight || document.documentElement.clientHeight;
-		
-		x = Math.max(0, Math.min(x, iw - this.table.clientWidth));
-		y = Math.max(0, Math.min(y, ih - this.table.clientHeight - ((urlParams['sketch'] == '1') ? 3 : 48)));
-
-		if (this.getX() != x || this.getY() != y)
-		{
-			mxWindow.prototype.setLocation.apply(this, arguments);
-		}
-	};
-	
-	var resizeListener = mxUtils.bind(this, function()
-	{
-		var x = this.window.getX();
-		var y = this.window.getY();
-		
-		this.window.setLocation(x, y);
-	});
-	
-	mxEvent.addListener(window, 'resize', resizeListener);
-
-	this.destroy = function()
-	{
-		mxEvent.removeListener(window, 'resize', resizeListener);
-		this.window.destroy();
-	}
+	editorUi.installResizeHandler(this, true);
 };
 
 /**
@@ -7880,12 +7839,6 @@ var AuthDialog = function(editorUi, peer, showRememberOption, fn)
 	{
 		service = mxResources.get('gitlab');
 		img.src = IMAGE_PATH + '/gitlab-logo.svg';
-		img.style.width = '32px';
-	}
-	else if (peer == editorUi.notion)
-	{
-		service = mxResources.get('notion');
-		img.src = IMAGE_PATH + '/notion-logo-white.svg';
 		img.style.width = '32px';
 	}
 	else if (peer == editorUi.trello)
@@ -8036,7 +7989,7 @@ var MoreShapesDialog = function(editorUi, expanded, entries)
 									preview.style.textAlign = 'center';
 									preview.style.padding = '0px';
 									preview.style.color = '';
-									preview.innerHTML = '';
+									preview.innerText = '';
 									
 									if (entry.desc != null)
 									{
@@ -8417,7 +8370,7 @@ var MoreShapesDialog = function(editorUi, expanded, entries)
 	this.container = div;
 };
 
-var PluginsDialog = function(editorUi, addFn, delFn) 
+var PluginsDialog = function(editorUi, addFn, delFn, closeOnly) 
 {
 	var div = document.createElement('div');
 	var inner = document.createElement('div');
@@ -8434,11 +8387,11 @@ var PluginsDialog = function(editorUi, addFn, delFn)
 
 		if (plugins.length == 0)
 		{
-			inner.innerHTML = mxUtils.htmlEntities(mxResources.get('noPlugins'));
+			inner.innerText = mxResources.get('noPlugins');
 		}
 		else
 		{
-			inner.innerHTML = '';
+			inner.innerText = '';
 			
 			for (var i = 0; i < plugins.length; i++)
 			{
@@ -8565,7 +8518,7 @@ var PluginsDialog = function(editorUi, addFn, delFn)
 				refresh();
 			}
 		}), null, null, null, customBtn);
-		editorUi.showDialog(dlg.container, 300, 100, true, true);
+		editorUi.showDialog(dlg.container, 360, 100, true, true);
 	});
 	
 	addBtn.className = 'geBtn';
@@ -8577,7 +8530,7 @@ var PluginsDialog = function(editorUi, addFn, delFn)
 	
 	cancelBtn.className = 'geBtn';
 	
-	var applyBtn = mxUtils.button(mxResources.get('apply'), function()
+	var applyBtn = mxUtils.button(closeOnly? mxResources.get('close') : mxResources.get('apply'), function()
 	{
 		if (changed)
 		{
@@ -8614,7 +8567,11 @@ var PluginsDialog = function(editorUi, addFn, delFn)
 	
 	if (editorUi.editor.cancelFirst)
 	{
-		buttons.appendChild(cancelBtn);
+		if (!closeOnly)
+		{
+			buttons.appendChild(cancelBtn);
+		}
+
 		buttons.appendChild(addBtn);
 		buttons.appendChild(applyBtn);
 	}
@@ -8622,7 +8579,10 @@ var PluginsDialog = function(editorUi, addFn, delFn)
 	{
 		buttons.appendChild(addBtn);
 		buttons.appendChild(applyBtn);
-		buttons.appendChild(cancelBtn);
+		if (!closeOnly)
+		{
+			buttons.appendChild(cancelBtn);
+		}
 	}
 
 	div.appendChild(buttons);
@@ -9537,7 +9497,7 @@ var LibraryDialog = function(editorUi, name, library, initialImages, file, mode)
 					
 					function updateLabel()
 					{
-						label.innerHTML = '';
+						label.innerText = '';
 						label.style.cursor = 'pointer';
 						label.style.whiteSpace = 'nowrap';
 						label.style.textOverflow = 'ellipsis';
@@ -9593,7 +9553,7 @@ var LibraryDialog = function(editorUi, name, library, initialImages, file, mode)
 								
 								if (entry.title == null || entry.title.length == 0)
 								{
-									label.innerHTML = '';
+									label.innerText = '';
 								}
 								
 								label.style.textOverflow = '';
@@ -10503,7 +10463,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 	
 	function showError(msg)
 	{
-		errMsg.innerHTML = mxUtils.htmlEntities(msg);
+		errMsg.innerText = msg;
 		errMsg.style.display = 'block';
 		
 		setTimeout(function()
@@ -10865,7 +10825,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 	
 	function toggleButtons(isTemplate)
 	{
-		createBtn.innerHTML = mxUtils.htmlEntities(mxResources.get(inTempScreen || isTemplate? 'create' : 'copy'));
+		createBtn.innerText = mxResources.get(inTempScreen || isTemplate? 'create' : 'copy');
 		
 		var opemDisplay = isTemplate? 'none' : '';
 		
@@ -10891,7 +10851,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 		
 		if (!internalCall)
 		{
-			diagramsTiles.innerHTML = '';
+			diagramsTiles.innerText = '';
 			swapActiveItem();
 			curDiagList = diagrams;
 			curSearchImportCats = searchImportCats;
@@ -10907,15 +10867,15 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 			var hrow = document.createElement('tr');
 			var th = document.createElement('th');
 			th.style.width = "50%";
-			th.innerHTML = mxUtils.htmlEntities(mxResources.get('diagram'));
+			th.innerText = mxResources.get('diagram');
 			hrow.appendChild(th);
 			th = document.createElement('th');
 			th.style.width = "25%";
-			th.innerHTML = mxUtils.htmlEntities(mxResources.get('changedBy'));
+			th.innerText = mxResources.get('changedBy');
 			hrow.appendChild(th);
 			th = document.createElement('th');
 			th.style.width = "25%";
-			th.innerHTML = mxUtils.htmlEntities(mxResources.get('lastModifiedOn'));
+			th.innerText = mxResources.get('lastModifiedOn');
 			hrow.appendChild(th);
 			grid.appendChild(hrow);
 			diagramsTiles.appendChild(grid);
@@ -10931,7 +10891,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 							diagrams[i].title);
 			var tooltip = title || diagrams[i].url;
 			var imgUrl = diagrams[i].imgUrl;
-			var changedBy = mxUtils.htmlEntities(diagrams[i].changedBy || "");
+			var changedBy = diagrams[i].changedBy || '';
 			var lastModifiedOn = '';
 			
 			if (diagrams[i].lastModifiedOn)
@@ -10943,7 +10903,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 					str = mxResources.get('lessThanAMinute');
 				}
 				
-				lastModifiedOn = mxUtils.htmlEntities(mxResources.get('timeAgo', [str], '{1} ago'));
+				lastModifiedOn = mxResources.get('timeAgo', [str], '{1} ago');
 			}
 			
 			if (!imgUrl)
@@ -10978,10 +10938,10 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 				td.appendChild(titleSpan);
 				row.appendChild(td);
 				td = document.createElement('td');
-				td.innerHTML = changedBy;
+				td.innerText = changedBy;
 				row.appendChild(td);
 				td = document.createElement('td');
-				td.innerHTML = lastModifiedOn;
+				td.innerText = lastModifiedOn;
 				row.appendChild(td);
 				grid.appendChild(row);
 				
@@ -11098,7 +11058,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 			{
 				var header = document.createElement('div');
 				header.className = 'geTempDlgImportCat';
-				header.innerHTML = mxResources.get(cat, null, cat);
+				header.innerText = mxResources.get(cat, null, cat);
 				diagramsTiles.appendChild(header);
 				fillDiagramsList(catList, isTemplate, asList, null, true);
 			}
@@ -11107,7 +11067,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 	
 	function fillNewDiagramCats(newDiagramCats, showAll) 
 	{
-		newDiagramCatList.innerHTML = "";
+		newDiagramCatList.innerText = '';
 		swapActiveItem();
 		var oneRowCount = Math.floor(newDiagramCatList.offsetWidth / 150) - 1;
 		var catCount = !showAll && newDiagramCats.length > oneRowCount ? oneRowCount : newDiagramCats.length;
@@ -11176,12 +11136,12 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 		entry.setAttribute('title', label);
 		var imgDiv = document.createElement('div');
 		imgDiv.className = "geTempDlgNewDiagramCatItemImg";
-		imgDiv.innerHTML = '...';
+		imgDiv.innerText = '...';
 		imgDiv.style.fontSize = '32px';
 		entry.appendChild(imgDiv);
 		var lblDiv = document.createElement('div');
 		lblDiv.className = "geTempDlgNewDiagramCatItemLbl";
-		lblDiv.innerHTML = label;
+		lblDiv.innerText = label;
 		entry.appendChild(lblDiv);
 		newDiagramCatList.appendChild(entry);
 
@@ -11222,14 +11182,14 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 		{
 			newDiagramCat.style.height = "280px";
 			newDiagramCatList.style.height = "190px";
-			showAllBtn.innerHTML = mxUtils.htmlEntities(mxResources.get('showMore'));
+			showAllBtn.innerText = mxResources.get('showMore');
 			fillNewDiagramCats(newDiagramCats);
 		}
 		else 
 		{
 			newDiagramCat.style.height = "440px";
 			newDiagramCatList.style.height = "355px";
-			showAllBtn.innerHTML = mxUtils.htmlEntities(mxResources.get('showLess'));
+			showAllBtn.innerText = mxResources.get('showLess');
 			fillNewDiagramCats(newDiagramCats, true);
 		}
 
@@ -11580,7 +11540,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 		
 		if (errorMsg)
 		{
-			diagramsTiles.innerHTML = errorMsg;
+			diagramsTiles.innerText = errorMsg;
 		}
 		else
 		{
@@ -11594,7 +11554,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 				
 			if (list.length == 0 && importListsCount == 0)
 			{
-				diagramsTiles.innerHTML = mxUtils.htmlEntities(mxResources.get('noDiagrams'));
+				diagramsTiles.innerText = mxResources.get('noDiagrams');
 			}
 			else
 			{
@@ -11608,11 +11568,11 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 		if (recentDocsCallback)
 		{
 			tempDlgContent.scrollTop = 0;
-			diagramsTiles.innerHTML = '';
+			diagramsTiles.innerText = '';
 			spinner.spin(diagramsTiles);
 			cancelPendingCall = false;
 			callInitiated = true;
-			diagramsListTitle.innerHTML = mxUtils.htmlEntities(mxResources.get('recentDiag'));
+			diagramsListTitle.innerText = mxResources.get('recentDiag');
 			lastSearchStr = null;
 			recentDocsCallback(extDiagramsCallback, function()
 			{
@@ -11739,7 +11699,7 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 		
 		if (results.length == 0)
 		{
-			diagramsListTitle.innerHTML = mxResources.get('noResultsFor', [searchTerms]);
+			diagramsListTitle.innerText = mxResources.get('noResultsFor', [searchTerms]);
 		}
 		else
 		{
@@ -11753,9 +11713,9 @@ var TemplatesDialog = function(editorUi, callback, cancelCallback,
 		
 		deselectTempCat();
 		tempDlgContent.scrollTop = 0;
-		diagramsTiles.innerHTML = '';
-		diagramsListTitle.innerHTML = mxUtils.htmlEntities(mxResources.get('searchResults')) + 
-										' "' + mxUtils.htmlEntities(searchStr) + '"';
+		diagramsTiles.innerText = '';
+		diagramsListTitle.innerText = mxResources.get('searchResults') + 
+										' "' + searchStr + '"';
 		delayTimer = null;
 
 		if (inTempScreen)
@@ -11896,11 +11856,6 @@ var BtnDialog = function(editorUi, peer, btnLbl, fn)
 	{
 		service = mxResources.get('gitlab');
 		img.src = IMAGE_PATH + '/gitlab-logo.svg';
-	}
-	else if (peer == editorUi.notion)
-	{
-		service = mxResources.get('notion');
-		img.src = IMAGE_PATH + '/notion-logo.svg';
 	}
 	else if (peer == editorUi.trello)
 	{
@@ -12461,7 +12416,7 @@ AspectDialog.prototype.createPageItem = function(pageId, pageName, pageNode)
 		this.selectedItem = $listItem;
 		this.selectedPage = pageId;
 		$listItem.className += ' geAspectDlgListItemSelected';
-		this.layersContainer.innerHTML = '';
+		this.layersContainer.innerText = '';
 		this.selectedLayers = {};
 		this.okBtn.setAttribute('disabled', 'disabled');
 		
@@ -12500,7 +12455,7 @@ AspectDialog.prototype.createLayerItem = function(layer, pageId, graph, pageNode
 			$listItem.className = 'geAspectDlgListItem';
 			delete this.selectedLayers[layer.id];
 			
-			if (Object.keys(this.selectedLayers).length == 0)
+			if (mxUtils.isEmptyObject(this.selectedLayers))
 			{
 				this.okBtn.setAttribute('disabled', 'disabled');
 			}
@@ -12536,7 +12491,7 @@ var FilePropertiesDialog = function(editorUi)
 	var filename = (file != null && file.getTitle() != null) ?
 		file.getTitle() : editorUi.defaultFilename;
 	var isPng = /(\.png)$/i.test(filename);
-	var apply = null;
+	var apply = function() { };
 
 	if (isPng)
 	{
@@ -12627,9 +12582,10 @@ var FilePropertiesDialog = function(editorUi)
 			editorUi.hideDialog();
 		};
 	}
-	else
+	else if (!/(\.html)$/i.test(filename) &&
+		!/(\.svg)$/i.test(filename))
 	{
-		var compressed = (file != null) ? file.isCompressed() : Editor.compressXml;
+		var initialCompressed = (file != null) ? file.isCompressed() : Editor.compressXml;
 
 		row = document.createElement('tr');
 		td = document.createElement('td');
@@ -12643,7 +12599,7 @@ var FilePropertiesDialog = function(editorUi)
 		var compressedInput = document.createElement('input');
 		compressedInput.setAttribute('type', 'checkbox');
 		
-		if (compressed)
+		if (initialCompressed)
 		{
 			compressedInput.setAttribute('checked', 'checked');
 			compressedInput.defaultChecked = true;
@@ -12662,9 +12618,10 @@ var FilePropertiesDialog = function(editorUi)
 		
 		apply = function()
 		{
-			if (editorUi.fileNode != null)
+			if (editorUi.fileNode != null && initialCompressed != compressedInput.checked)
 			{
-				editorUi.fileNode.setAttribute('compressed', (compressedInput.checked) ? 'true' : 'false');
+				editorUi.fileNode.setAttribute('compressed',
+					(compressedInput.checked) ? 'true' : 'false');
 				
 				if (file != null)
 				{
@@ -12675,7 +12632,68 @@ var FilePropertiesDialog = function(editorUi)
 			editorUi.hideDialog();
 		};
 	}
+
+	if (file != null && file.isRealtimeOptional())
+	{
+		row = document.createElement('tr');
+		td = document.createElement('td');
+		td.style.whiteSpace = 'nowrap';
+		td.style.fontSize = '10pt';
+		td.style.width = '120px';
+		mxUtils.write(td, mxResources.get('realtimeCollaboration') + ':');
+		row.appendChild(td);
 	
+		var collabInput = document.createElement('input');
+		collabInput.setAttribute('type', 'checkbox');
+		var initialCollab = file.isRealtimeEnabled();
+
+		var collab = editorUi.drive.getCustomProperty(file.desc, 'collaboration');
+		var initialCollab = collab != 'disabled';
+	
+		if (initialCollab)
+		{
+			collabInput.setAttribute('checked', 'checked');
+			collabInput.defaultChecked = true;
+		}
+
+		prevApply = apply;
+		apply = function()
+		{
+			prevApply();
+			editorUi.hideDialog();
+
+			if (collabInput.checked != initialCollab)
+			{
+				if (editorUi.spinner.spin(document.body, mxResources.get('updatingDocument')))
+				{
+					file.setRealtimeEnabled(collabInput.checked, mxUtils.bind(this, function(resp)
+					{
+						editorUi.spinner.stop();
+					}), mxUtils.bind(this, function(resp)
+					{
+						editorUi.spinner.stop();
+						editorUi.showError(mxResources.get('error'), (resp != null && resp.error != null) ?
+							resp.error.message : mxResources.get('unknownError'), mxResources.get('ok'));
+					}));
+				}
+			}
+		};
+
+		this.init = (this.init != null) ? this.init : function()
+		{
+			collabInput.focus();
+		};
+
+		td = document.createElement('td');
+		td.style.whiteSpace = 'nowrap';
+		td.appendChild(collabInput);
+		td.appendChild(editorUi.menus.createHelpLink('https://github.com/jgraph/drawio/discussions/2672'));
+		row.appendChild(td);
+		tbody.appendChild(row);
+	}
+
+	this.init = (this.init != null) ? this.init : function() { };
+
 	var genericBtn = mxUtils.button(mxResources.get('apply'), apply);
 	genericBtn.className = 'geBtn gePrimaryBtn';
 	
@@ -12684,7 +12702,7 @@ var FilePropertiesDialog = function(editorUi)
 	td.colSpan = 2;
 	td.style.paddingTop = '20px';
 	td.style.whiteSpace = 'nowrap';
-	td.setAttribute('align', 'right');
+	td.setAttribute('align', 'center');
 	
 	var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
 	{

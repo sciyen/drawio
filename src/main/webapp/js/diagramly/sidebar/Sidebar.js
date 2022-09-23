@@ -39,7 +39,7 @@
 
 	Sidebar.prototype.gcp = ['Cards', 'Big Data', 'Compute', 'Developer Tools', 'Extras', 'Identity and Security', 'Machine Learning', 'Management Tools', 'Networking', 'Storage Databases'];
 	
-	Sidebar.prototype.gcp2 = ['Paths', 'Zones', 'Service Cards', 'Compute', 'API Management', 'Security', 'Data Analytics', 'Data Transfer', 'Cloud AI', 'Internet of Things', 'Databases', 'Storage', 'Management Tools', 'Networking', 'Developer Tools', 'Expanded Product Cards', 'User Device Cards', 'Product Cards', 'General Icons', 'Icons AI Machine Learning', 'Icons Compute', 'Icons Data Analytics', 'Icons Management Tools', 'Icons Networking', 'Icons Developer Tools', 'Icons API Management', 'Icons Internet of Things', 'Icons Databases', 'Icons Storage', 'Icons Security', 'Icons Migration', 'Icons Hybrid and Multi Cloud'];
+	Sidebar.prototype.gcp2 = ['Paths', 'Zones', 'Service Cards', 'Compute', 'API Management', 'Security', 'Data Analytics', 'Data Transfer', 'Cloud AI', 'Internet of Things', 'Databases', 'Storage', 'Management Tools', 'Networking', 'Developer Tools', 'Expanded Product Cards', 'User Device Cards', 'Product Cards', 'General Icons', 'Icons AI and Machine Learning', 'Icons Compute', 'Icons Data Analytics', 'Icons Operations', 'Icons Networking', 'Icons CI CD', 'Icons API Management', 'Icons Internet of Things', 'Icons Databases', 'Icons Storage', 'Icons Security', 'Icons Migration', 'Icons Hybrid and Multi Cloud', 'Icons Open Source Icons'];
 	
 	Sidebar.prototype.gcpicons = ['AI and Machine Learning', 'API Management', 'Compute', 'Data Analytics', 'Databases', 'Developer Tools', 'Expanded Product Card Icons', 'Generic', 'Hybrid and Multi Cloud', 'Security', 'Internet of Things', 'Management Tools', 'Migration', 'Networking', 'Open Source Icons', 'Storage'];
 	
@@ -76,7 +76,7 @@
 							  'Database', 'Desktop App Streaming', 'Developer Tools', 'Game Development', 'Internet of Things', 'IoT Things', 'IoT Resources', 'Machine Learning', 'Management Tools',
 							  'Media Services', 'Migration', 'Mobile Services', 'Network Content Delivery', 'Security Identity Compliance', 'Storage'];
 	
-	Sidebar.prototype.aws4 = ['Arrows', 'General Resources', 'Illustrations', 'Groups', 'Analytics', 'Application Integration', 'AR VR', 'Cost Management', 'Blockchain', 
+	Sidebar.prototype.aws4 = ['Arrows', 'General Resources', 'Illustrations', 'Groups', 'Analytics', 'Application Integration', 'AR VR', 'Cloud Financial Management', 'Blockchain', 
 							  'Business Applications', 'Compute', 'Containers', 'Customer Enablement', 'Customer Engagement',
 							  'Database', 'Developer Tools', 'End User Computing', 'Front End Web Mobile', 'Game Tech', 'Internet of Things', 'IoT Things', 'IoT Resources', 'Machine Learning', 'Management Governance',
 							  'Media Services', 'Migration Transfer', 'Network Content Delivery', 'Quantum Technologies', 'Robotics', 'Satellite', 'Serverless', 'Security Identity Compliance', 'Storage'];
@@ -300,7 +300,8 @@
 		
 		if (elts != null)
 		{
-			var vis = (visible != null) ? ((visible) ? 'block' : 'none') : (elts[0].style.display == 'none') ? 'block' : 'none';
+			var vis = (visible != null) ? ((visible) ? 'block' : 'none') :
+				(elts[0].style.display == 'none') ? 'block' : 'none';
 			
 			for (var i = 0; i < elts.length; i++)
 			{
@@ -612,44 +613,59 @@
 			{
 				if (mxEvent.getSource(evt).nodeName == 'BUTTON')
 				{
-					var title2 = title.cloneNode(true);
-					title2.style.backgroundImage = '';
-					title2.style.textDecoration = 'none';
-					title2.style.fontWeight = 'bold';
-					title2.style.fontSize = '14px';
-					title2.style.color = 'rgb(80, 80, 80)';
-					title2.style.width = '456px';
-					title2.style.backgroundColor = '#ffffff';
-					title2.style.paddingLeft = '6px';
+					var svgs = content.getElementsByTagName('svg');
+					var w = 456;
+					var h = (Math.ceil(svgs.length / 6) + 1) * this.thumbHeight;
+					var root = Graph.createSvgNode(0, 0, w, h, '#ffffff');
 					
-					var btn2 = title2.getElementsByTagName('button')[0];
-					btn2.parentNode.removeChild(btn2);
-					
-					var clone = content.cloneNode(true);
-					clone.style.backgroundColor = '#ffffff';
-					clone.style.borderColor = 'transparent';
-					clone.style.width = '456px';
-	
-					var parser = new DOMParser();
-					var doc = parser.parseFromString('<body style="background:#ffffff;font-family:Helvetica,Arial;">' +
-							title2.outerHTML + clone.outerHTML + '</body>', 'text/html');
-					
-					this.editorUi.editor.convertImages(doc.documentElement, mxUtils.bind(this, function(body)
+					// Adds title
+					var canvas = new mxSvgCanvas2D(root);
+					canvas.setFontFamily(mxConstants.DEFAULT_FONTFAMILY);
+					canvas.setFontStyle(mxConstants.FONT_BOLD);
+					canvas.setFontColor('rgb(80, 80, 80)');
+					canvas.setFontSize(14);
+
+					// Extracts title text
+					var children = title.childNodes;
+
+					for (var i = 0; i < children.length; i++)
 					{
-						var html = '<!DOCTYPE html><html><head><link rel="stylesheet" type="text/css" ' +
-							'href="https://www.draw.io/styles/grapheditor.css"></head>' +
-							mxUtils.getXml(body) + '</html>';
-		
-						clone.style.position = 'absolute';
-						window.document.body.appendChild(clone);
-						var h = clone.clientHeight + 18;
-						clone.parentNode.removeChild(clone);
-						
-						this.editorUi.confirm('Image data created', mxUtils.bind(this, function()
+						if (children[i].nodeType == mxConstants.NODETYPE_TEXT)
 						{
-				    		new mxXmlRequest(EXPORT_URL, 'w=456&h=' + h + '&html=' + encodeURIComponent(
-				    			Graph.compress(html))).simulate(document, '_blank');
-						}), null, mxResources.get('save'), mxResources.get('cancel'));
+							canvas.plainText(6, 0, 0, 0, mxUtils.getTextContent(children[i]));
+
+							break;
+						}
+					}
+
+					for (var i = 0; i < svgs.length; i++)
+					{
+						var svg = svgs[i];
+						var clone = svg.cloneNode(true);
+						clone.removeAttribute('style');
+						clone.setAttribute('width', this.thumbWidth);
+						clone.setAttribute('height', this.thumbHeight);
+						clone.setAttribute('x', 12 + mxUtils.mod(i, 6) * 68);
+						clone.setAttribute('y', 24 + Math.floor(i / 6) * 68);
+						root.appendChild(clone);
+					}
+
+					this.editorUi.editor.convertImages(root, mxUtils.bind(this, function(body)
+					{
+						var canvas = document.createElement('canvas');
+						canvas.width = w;
+						canvas.height = h;
+					
+						var img = document.createElement('img');
+						img.onload = mxUtils.bind(this, function()
+						{
+							var ctx = canvas.getContext('2d');
+							ctx.drawImage(img, 0, 0)
+							this.editorUi.saveCanvas(canvas, null, 'png');
+						});
+
+						var xml = Graph.xmlDeclaration + '\n' + Graph.svgDoctype + '\n' + mxUtils.getXml(root);
+						img.src = Editor.createSvgDataUri(xml);
 					}));
 					
 					return;
@@ -937,7 +953,7 @@
 									if (error != null)
 									{
 										content.style.display = 'block';
-										title.innerHTML = '';
+										title.innerText = '';
 										mxUtils.write(title, this.editorUi.getResource(lib.title));
 										showError(error, content);
 									}
@@ -945,13 +961,13 @@
 									{
 										this.editorUi.addLibraryEntries(data, content);
 										content.style.display = 'block';
-										title.innerHTML = '';
+										title.innerText = '';
 										mxUtils.write(title, this.editorUi.getResource(lib.title));
 									}
 									else
 									{
 										content.style.display = 'none';
-										title.innerHTML = '';
+										title.innerText = '';
 										mxUtils.write(title, mxResources.get('loading') + '...');
 									}
 								}
@@ -971,7 +987,7 @@
 									});
 
 									content.style.display = 'none';
-									title.innerHTML = '';
+									title.innerText = '';
 									mxUtils.write(title, mxResources.get('loading') + '...');
 									
 									var url = lib.url;
@@ -984,7 +1000,7 @@
 									this.editorUi.editor.loadUrl(url, mxUtils.bind(this, function(data)
 									{
 										content.style.display = 'block';
-										title.innerHTML = '';
+										title.innerText = '';
 										mxUtils.write(title, this.editorUi.getResource(lib.title));
 
 										try
@@ -1401,7 +1417,41 @@
 		
 		sidebarSearchEntries.apply(this, arguments);
 	};
-
+	
+	// Fixes sidebar tooltips (previews)
+	var sidebarGetTooltipOffset = Sidebar.prototype.getTooltipOffset;
+	
+	Sidebar.prototype.getTooltipOffset = function(elt, bounds)
+	{
+		if (Editor.currentTheme == 'simple' || Editor.currentTheme == 'min')
+		{
+			if (this.editorUi.sidebarWindow == null ||
+				mxUtils.isAncestorNode(this.editorUi.sketchPickerMenuElt, elt))
+			{
+				var off = mxUtils.getOffset(this.editorUi.sketchPickerMenuElt);
+				
+				off.x += this.editorUi.sketchPickerMenuElt.offsetWidth + 4;
+				off.y += elt.offsetTop - bounds.height / 2 + 16;
+				
+				return off;
+			}
+			else
+			{
+				var result = sidebarGetTooltipOffset.apply(this, arguments);
+				var off = mxUtils.getOffset(this.editorUi.sidebarWindow.window.div);
+				
+				result.x += off.x - 16;
+				result.y += off.y;
+				
+				return result;
+			}
+		}
+		else
+		{
+			return sidebarGetTooltipOffset.apply(this, arguments);
+		}
+	};
+    
 	/**
 	 * Adds a click handler for inserting the cell as target for dangling edge.
 	 */

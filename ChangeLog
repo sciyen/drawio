@@ -1,10 +1,480 @@
+22-SEP-2022: 20.3.5
+
+- Ignores OS setting for default dark mode [DS-916]
+
+22-SEP-2022: 20.3.4 - BUILD FAILED AT STAGE TESTING - https://github.com/jgraph/drawio-dev/commit/1bb7a0fc531d68ff85653534e4f11774914bcc30
+
+- Changes proxy 500 returns to 400 [DS-915]
+- Disables dark mode with UI in embed mode [DS-6350]
+- Fixes embed button offset and padding in sketch UI
+
+19-SEP-2022: 20.3.3
+
+- Replaces CSS classname in live UI refresh to avoid extension clash [DS-909]
+
+16-SEP-2022: 20.3.2
+
+- Keep SVG content attribute in DOMPurify [DID-6193]
+
+15-SEP-2022: 20.3.1
+
+- Multiple commits preparing for live UI switch [DS-909]
+- Disables java proxy by default [DS-912]
+- Removes click to stop drawing freehand [1109]
+- NPE fix [DS-913]
+- NPE fix [DS-914]
+- [conf cloud] Diagram count restrictions on free tier [DFCC-57]
+- Fixes scroll issue for CMD key in Safari 16 [3017]
+- Enables autosize for multiple vertices [1116]
+- Adds ui/safe to fix possible XSS in math [CSP-733]
+
+07-SEP-2022: 20.3.0
+
+- Uses organic as default layout to fix possible NPE in CSV import [DS-910]
+- Removes storage.googleapis.com from CSP as no longer needed for PWA [CSP-673]
+- Adds ALLOW_CUSTOM_PLUGINS for third party plugins [CSP-676]
+- Limits plugins to built-in or same domain [CSP-676]
+- Hides connect arrows while freehand drawing [1107]
+- Removes yarn.lock file as we removed package.json from this project [DS-911]
+- Fixes possible XSS in viewer back/refresh buttons [CSP-677]
+- Checks href attribute with no namespace in use tag [CSP-678]
+
+01-SEP-2022: 20.2.8
+
+- Fixes importing plain SVG images by drag and drop [DS-902]
+- Adds createToolbarButton helper function [3007]
+- Sets current stroke color and width independently [DS-903]
+- Fixes layout for CSV import in lightbox mode [DS-904]
+- Fixes repeated set default style not working [DS-905]
+- [conf cloud] Catches errors in diagram text extraction to not break re-indexing process [DS-908]
+- Applies fillColor=strokeColor for shapes where appropriate [DS-903]
+- Makes format window closable in min ui [DS-906]
+- Fixes file pattern for workbox [2977]
+- Smaller stencils.min, uses built-in base64 encoder [DS-907]
+- Allows for close icon in minimized format window [DS-906]
+- Adds support for stroke and fill color in stencils [DS-903]
+- Restricts proxy servlet, java disabled by default, all errors are 500 (not distinguishable), allow ports only by config [CSP-633]
+- Conf Cloud: Fixed error of renaming/changing view settings not published if no modification done to the diagram [DID-6141]
+- Adds custom starting unit number to Rack Cabinet shape [2967]
+
+22-AUG-2022: 20.2.7
+
+- Reduces cursor update frequency to reduce DO request count [DS-899]
+- Creates Github app specific to confluence cloud [DS-900]
+- Adds enumeration state in image export [2900]
+- Updates freehand library to fix security dependency issue
+- Fixes highlight for drag over AWS subnet [2966]
+
+21-AUG-2022: 20.2.6
+
+- Updates to latest GCP icon set [DS-898]
+- Changes language menu icon to SVG [DS-897]
+- Use relative URL for service worker [2740]
+
+18-AUG-2022: 20.2.5
+
+- [conf cloud] Adds support for anon users by using display name instead of email [DS-895]
+- [conf cloud] Adds private repository support to embed diagram github option  [DID-5931]
+- [conf cloud] Fixes hi res preview setting in viewer [DID-5978]
+
+15-AUG-2022: 20.2.4
+
+- [conf cloud] Adds support for legacy diagramly macros [DID-5823]
+
+03-AUG-2022: 20.2.3
+
+- [conf cloud] Fixes adding diagrams to unsaved global templates [DID-5761]
+
+26-JUL-2022: 20.2.2
+
+- Uses proxy for loading from template URL [DND-629]
+- [conf cloud] Fixes issue in page update of pageIDs import [DID-5641]
+
+26-JUL-2022: 20.2.1
+
+- Adds statistics to realtime CF worker
+- Adds checksums for merge(File) error logging
+
+22-JUL-2022: 20.2.0
+
+- Changes real-time collaboration CF worker to use the same DO for multiple files
+
+21-JUL-2022: 20.1.4
+
+- Fixes dark mode switch overlaps embed buttons
+- Fixes embed button styles in dark mode
+- Uses proxy for CSV descriptor URL if CSP is used
+
+20-JUL-2022: 20.1.3
+
+- Fixes curved/rounded checkbox in diagram style tab
+- Restores update of default curved/rounded style
+- Adds border width and type for color scheme [2924]
+- Fixes ignored expand style for image change [2921]
+
+19-JUL-2022: 20.1.2
+
+- Update mermaid to v9.1.3
+- Removes Advanced PDF export when printPdfExport is true
+- Adds A/S/D/F/X/C, moves Ctrl+(Shift)+K/X shortcuts
+- Fixes page background if ui URL parameter is used
+- Adds label in dialog/tooltip if diagram translated
+- Uses default browser language for online app
+
+12-JUL-2022: 20.1.1
+
+- Closes secret manager resources
+
+11-JUL-2022: 20.1.0
+
+- [conf cloud] Trial to add archived spaces support to Gliffy mass import
+- Improves performance for CSV parsing (RFC 4180)
+- Uses gcloud secret manager
+- [conf cloud] Changed page IDs export name to draw.io Export
+- [conf cloud] Using Page IDs import/export in cloud/server
+- [conf cloud] Added archived spaces support to Gliffy mass import
+- Changes  pusher.properties to pusher_properties
+
+29-JUN-2022: 20.0.4
+
+- [conf cloud] Adds tags to viewer/lightbox toolbar
+- Adds initial miro import (non-production)
+- Disables math typesetting for plain text [2899]
+
+22-JUN-2022: 20.0.3
+
+- Fixes ignored error codes for loading templates
+- Fixes new tab for insert from template URL [2891]
+- Validates dialog size after window resize [2883]
+- Fixes page tabs overflow after format panel toggle
+- Adds Lithuanian and Latvian translations
+
+21-JUN-2022: 20.0.2
+
+- Fixes autosize and text editor with spacing [2732]
+- Fixes embed mode with math typesetting [2879]
+- Fixes math rendering in embed code for html files
+
+12-JUN-2022: 20.0.1
+
+- Fixes bold math in print output for Chrome [2873]
+- Disables MathJax for Internet Explorer
+- Adds MathJax callback, fixes math in PDF export
+- Fixes style changes override default style [2164]
+
+11-JUN-2022: 20.0.0
+
+- Fixes font style button state before typing [2398]
+- Fixes overwritten style for new cell in CSV import
+- Updates to MathJax 3
+
+08-JUN-2022: 19.0.3
+
+- Adds allowlist for allowed constructors in mxCodec
+- Fixes possible NPE with no local storage [2850]
+- Handles service worker permission error in promise
+- Adds fixedWidth to limit autosize to height [2732]
+
+07-JUN-2022: 19.0.2
+
+- Fixes isNode check, handling of HTML in node names
+- Fixes cell value Element type check in mxCellCodec
+- Changes mxStylesheetCodec.allowEval to false
+
+06-JUN-2022: 19.0.1
+
+- Fixes handling of cell ID in CSV import [DID-5225]
+
+03-JUN-2022: 19.0.0
+
+- Removes IE 11 support
+- Updates mermaid.js to 9.1.1
+- Fixes updating existing cells in CSV import [2796]
+
+02-JUN-2022: 18.2.1
+
+- Updates JSZip to 3.10.0
+- Ignores only cells with hidden state in layouts
+- Fixes reset of document overflow in viewer [2822]
+- Adds support for orgchart layouts in CSV import
+- Updates AWS
+
+31-MAY-2022: 18.2.0
+
+- Fixes inconsistent menus in sketch theme
+- Fixes ignored XML data for importing embedded SVG
+- Fixes ignored double arrow marker selection [2839]
+- Fixes NPE with regex in find/replace dialog [2833]
+- Fixes link icons in dark mode
+- Fixes main button hover state in conf sketch macro
+
+26-MAY-2022: 18.1.3
+
+- Adds spacing dialog for parallels layout
+- Adds allowlist for layout constructor names
+- Adds JSON values for childLayout styles
+- Adds size check for fetched connection data
+- Allows custom protocols in links
+
+23-MAY-2022: 18.1.2
+
+- Limits export proxy URL
+
+20-MAY-2022: 18.1.1
+
+- [VSDX import] Fixes case when theme index is incorrect
+- Checks stencil name parameter in embed servlet
+- Adds DOM_PURIFY_CONFIG global variable
+- Check env var is set in ExportProxy
+
+19-MAY-2022: 18.0.8
+
+- Deletes unused ExportProxyServlet
+
+17-MAY-2022: 18.0.7
+
+- Sets setInstanceFollowRedirects(false) in proxyservlet
+- Fixes issue in state redirect of AbsAuth
+- Changes regex for CORS check
+
+16-MAY-2022: 18.0.6
+
+- Moves sanitize URL to Utils, adds extra IPv6 check
+- Adds additional checks for hyperlinks
+
+15-MAY-2022: 18.0.5
+
+- Adds isLinkLocalAddress() to address checks
+- Limits well known servlet to serving single file
+
+14-MAY-2022: 18.0.4
+
+- Fixes type error for diffsync with overlays [2808]
+- Handles possible error 400 in OneDrive auth flow
+- Fixes update of cell metadata in CSV import [2796]
+- Applies URL filtering checks to location header in java proxy
+- Resolves URL parameters in java proxy before filtering
+
+11-MAY-2022: 18.0.3
+
+- Removes remote cursor options from context menu
+- Fixes patch checking for entry with no secret
+- Updates closure compiler to v20220502
+- Fixes check for text/plain transfer data
+- Fixes replace all ignoring the first match
+
+07-MAY-2022: 18.0.2
+
+- Handles Element fields in object cloning [DND-477]
+- Fixes lost changes for preview while editing
+- Forbids use of form tags in labels
+- Fixes CSS issues in print dialog for lightbox
+
+05-MAY-2022: 18.0.1
+
+- Adds support for windows line break in CSV files
+- [conf cloud] Fixes trailing space in diagram name during page IDs import
+- FIxes timestamp check in watchFile [819] [DND-487]
+- Hides menus and dropdowns if clicked again [2745]
+- Fixes cursor handling for composite cells [2756]
+- [desktop] Adds strict CSP after loading plugins (disabling unsafe-inline scripts)
+
+04-MAY-2022: 18.0.0
+
+- Replaces sanitizer with DOMpurify
+
+04-MAY-2022: 17.5.1
+
+- [conf cloud] Adds saving delay for specific timing case [DID-4851]
+- Adds "shareCursorPosition": true/false configuration
+- [conf cloud] Prevent publishing without changes creating new version
+- Fixes alt+shift for floating connection [DID-4550]
+- Changes default for shareCursorPosition to true
+- Hides non-applicable sketch options for edges
+- Fixes handling of invalid background page images
+- Adds showRemoteCursors option
+- Fixes LocalFile ctor arguments
+- Fixes lazy shadow pages, stale local draft files
+- Fixes conflict handling for writing electron files
+
+28-APR-2022: 17.5.0
+
+- Refactors GCP2 shapes
+- [conf cloud] Improves page IDs import
+
+20-APR-2022: 17.4.6
+
+- Internal release testing whiteboard app changes
+
+11-APR-2022: 17.4.5
+
+- Internal release testing whiteboard app changes
+
+11-APR-2022: 17.4.4
+
+- Internal release testing whiteboard app changes
+
+11-APR-2022: 17.4.3
+
+- Avoids null string in unused token key
+
+09-APR-2022: 17.4.2
+
+- Fixes height of zero height groups in vsdx import
+- Adds connection points support in vsdx import
+- Adds isolation for caches, logs reading non-latest
+
+06-APR-2022: 17.4.1
+
+- Fixes OneDrive inline picker in Link dialog and show all files
+- Extracts text from selection if cells selected
+- Returns indexable text in model cell order
+- Fixes minimum stroke width for image export https://github.com/jgraph/drawio/issues/2723
+- Fixes PDF printing of background images
+- [conf cloud] Fixes NPE in viewer
+- [jira cloud] Adds delete button for cases of removed embed diagrams
+
+31-MAR-2022: 17.4.0
+
+- Disables text selection in OneDrive inline picker
+- [jira cloud] Fixes re-indexing of old diagrams
+- Fixes NPE for OneDrive file in LinkDialog https://github.com/jgraph/drawio/issues/2721
+- Fixes modal sync status in embed with sketch theme
+- GAE API SDK update to 1.9.95
+
+30-MAR-2022: 17.3.0
+
+- [conf cloud] Enables RT on all domains
+- [jira cloud] Fixes conf auth when multiple sites are allowed
+- Adds enableHtmlEditOption in EditorUi [DID-4610]
+
+30-MAR-2022: 17.2.6
+
+- [jira cloud] Adds Configuration page with re-indexing functionality
+
+29-MAR-2022: 17.2.5
+
+- Adds lazy parsing of file data for shadow pages
+- Adds selection option in print dialog for one page
+- Changes token generation to use SecureRandom
+- [conf cloud] Increases timeout after successful write to next write
+
+25-MAR-2022: 17.2.4
+
+- Fixes replace is not a function
+- Fixes Sharepoint saving to site root drives in new picker
+
+25-MAR-2022: 17.2.3
+
+- Fixes custom links in duplicated page for realtime
+- Uses same domain for realtime in production
+
+24-MAR-2022: 17.2.2
+
+- Adds Shift+Alt for floating connections [DID-4550]
+
+23-MAR-2022: 17.2.1
+
+- Fixes realtime for optimistic sync in OneDrive
+
+23-MAR-2022: 17.2.0
+
+- Improves performance issues on real time mechanism
+
+22-MAR-2022: 17.1.5
+
+- [conf cloud] Gliffy import case, containerId wrong, but diagram on current page
+
+22-MAR-2022: 17.1.4
+
+- [conf cloud] Fixed gliffy mass import, incorrect macro type imported
+
+15-MAR-2022: 17.1.3
+
+- Adds image clipPath support to mxLabel and mxSwimlane
+- [jira Cloud] Updates embed conf scopes
+
+11-MAR-2022: 17.1.2
+
+- Skips sort and merge in RT for single receive data
+- Reduces flickering, simplified RT code
+
+10-MAR-2022: 17.1.1
+
+- Uses tab key for nesting in list elements https://github.com/jgraph/drawio/issues/2673
+- Adds protocol and editor version to p2p message
+- Replaces consensus with improved consistency check
+- Fixes Gliffy DnD import
+
+09-MAR-2022: 17.1.0
+
+- Changes freehand drawing to filled path
+- Ignores pageNotFound in background image dialog
+- Fixes handling of default colors in style targets
+- Adds selection only option to print output
+- Fixes background image offset in print output
+- Fixes dark mode and background pages in print output
+
+08-MAR-2022: 17.0.0
+
+- Enables real time collaborative editing
+
+08-MAR-2022: 16.6.8
+
+- [conf cloud] Fixes toolbar showing in page editor in FF
+
+07-MAR-2022: 16.6.7
+
+- Adds MathJax Safe-mode to fix XSS vulnerability when viewer is used with CSP
+
+04-MAR-2022: 16.6.6
+
+- Fixed cropped images of sub shapes not showing
+
+02-MAR-2022: 16.6.5
+
+- Handles drag and drop of .drawio.png image files
+- Improves error handling when loading files
+- Adds i18n for realtime collaboration
+
+24-FEB-2022: 16.6.4
+
+- Make consistency check independent of return value
+- Fixes cropping in background image dialog
+- Adds click handler for status error message
+- [conf cloud] Adds clean draft files to draw.io re-indexing
+- Disables fast sync by default in OneDrive
+
+23-FEB-2022: 16.6.3
+
+- Enables Google Drive on PC in Office addon
+- Enables fast RT for OneDrive
+- Selects URL input after drag and drop
+
+21-FEB-2022: 16.6.2
+
+- Fixes snap to terminal tolerance
+- Fixes import of bitmap images into blank diagrams
+- Fixes dialog title for checksum error [DID-4314]
+- Handles remote page name changes in sketch theme
+
+17-FEB-2022: 16.6.1
+
+- Adds P2PCollab to build
+
+17-FEB-2022: 16.6.0
+
+- Mode URL parameter forces splash
+- Adds pass-through arguments
+- Disables auth check for external editing
+- Fixes parsing of keywords in SQL plugin https://github.com/jgraph/drawio/issues/2631
+
 10-FEB-2022: 16.5.6
 
 - Opens file after drag and drop on blank diagram
 - Shift+drop forces open file in new tab
 - Fixes pinch to zoom in lightbox
 - Moves multitouch event filtering to mxGraph
-- 
 
 09-FEB-2022: 16.5.5
 

@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.File;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.text.DateFormat;
@@ -41,6 +43,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.text.StringEscapeUtils;
 
 import com.google.appengine.api.utils.SystemProperty;
+
+import com.mxgraph.online.Utils.SizeLimitExceededException;
 
 /**
  * Servlet implementation class OpenServlet
@@ -215,15 +219,24 @@ public class EmbedServlet2 extends HttpServlet
 				}
 			}
 		}
+		catch (SizeLimitExceededException e)
+		{
+			response.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+
+			throw e;
+		}
 		catch (Exception e)
 		{
 			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+
+			throw e;
 		}
 	}
 
 	public void writeEmbedResponse(HttpServletRequest request,
 			HttpServletResponse response) throws IOException
 	{
+		response.setStatus(HttpServletResponse.SC_OK);
 		response.setCharacterEncoding("UTF-8");
 		response.setContentType("application/javascript; charset=UTF-8");
 		response.setHeader("Last-Modified", lastModified);
@@ -241,8 +254,6 @@ public class EmbedServlet2 extends HttpServlet
 		// Writes JavaScript and adds function call with
 		// stylesheet and stencils as arguments 
 		writer.println(createEmbedJavaScript(request));
-		response.setStatus(HttpServletResponse.SC_OK);
-
 		writer.flush();
 		writer.close();
 	}
@@ -267,7 +278,7 @@ public class EmbedServlet2 extends HttpServlet
 
 			for (int i = 0; i < names.length; i++)
 			{
-				if (names[i].indexOf("..") < 0 && !done.contains(names[i]))
+				if (names[i].indexOf("..") < 0 && !done.contains(names[i]) && names[i].length() > 0)
 				{
 					if (names[i].equals("*"))
 					{
@@ -277,6 +288,9 @@ public class EmbedServlet2 extends HttpServlet
 					}
 					else
 					{
+						// Makes name canonical
+						names[i] = new File("/" + names[i]).getCanonicalPath().substring(1);
+
 						// Checks if any JS files are associated with the library
 						// name and injects the JS into the page
 						String[] libs = libraries.get(names[i]);
@@ -387,32 +401,35 @@ public class EmbedServlet2 extends HttpServlet
 		if (urls != null)
 		{
 			HashSet<String> completed = new HashSet<String>();
+			int sizeLimit = Utils.MAX_SIZE;
 
 			for (int i = 0; i < urls.length; i++)
 			{
-				try
+				// Checks if URL already fetched to avoid duplicates
+				if (!completed.contains(urls[i]) && Utils.sanitizeUrl(urls[i]))
 				{
-					// Checks if URL already fetched to avoid duplicates
-					if (!completed.contains(urls[i]))
+					completed.add(urls[i]);
+					URL url = new URL(urls[i]);
+					URLConnection connection = url.openConnection();
+					((HttpURLConnection) connection).setInstanceFollowRedirects(false);
+					ByteArrayOutputStream stream = new ByteArrayOutputStream();
+					String contentLength = connection.getHeaderField("Content-Length");
+
+					// If content length is available, use it to enforce maximum size
+					if (contentLength != null && Long.parseLong(contentLength) > sizeLimit)
 					{
-						completed.add(urls[i]);
-						URL url = new URL(urls[i]);
-						URLConnection connection = url.openConnection();
-						ByteArrayOutputStream stream = new ByteArrayOutputStream();
-						Utils.copy(connection.getInputStream(), stream);
-						setCachedUrls += "GraphViewer.cachedUrls['"
-								+ StringEscapeUtils.escapeEcmaScript(urls[i])
-								+ "'] = decodeURIComponent('"
-								+ StringEscapeUtils.escapeEcmaScript(
-										Utils.encodeURIComponent(
-												stream.toString("UTF-8"),
-												Utils.CHARSET_FOR_URL_ENCODING))
-								+ "');";
+						break;
 					}
-				}
-				catch (Exception e)
-				{
-					// ignore
+
+					sizeLimit -= Utils.copyRestricted(connection.getInputStream(), stream);
+					setCachedUrls += "GraphViewer.cachedUrls['"
+							+ StringEscapeUtils.escapeEcmaScript(urls[i])
+							+ "'] = decodeURIComponent('"
+							+ StringEscapeUtils.escapeEcmaScript(
+									Utils.encodeURIComponent(
+											stream.toString("UTF-8"),
+											Utils.CHARSET_FOR_URL_ENCODING))
+							+ "');";
 				}
 			}
 		}

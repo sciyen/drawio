@@ -14,16 +14,16 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.mxgraph.online.Utils.SizeLimitExceededException;
+
 /**
  * Servlet implementation ExportProxyServlet
  */
 @SuppressWarnings("serial")
 public class ExportProxyServlet extends HttpServlet
 {
-	private final String EXPORT_URL = "http://localhost:8000/";
-	
 	private final String[] supportedServices = {"EXPORT_URL", "PLANTUML_URL", "VSD_CONVERT_URL", "EMF_CONVERT_URL"};
-	
+
 	private void doRequest(String method, HttpServletRequest request,
 			HttpServletResponse response) throws ServletException, IOException
 	{
@@ -63,13 +63,19 @@ public class ExportProxyServlet extends HttpServlet
 			catch (Exception e) 
 			{
 				// Ignore and use 0
+				serviceId = 0;
 			}
 			
 			String exportUrl = System.getenv(supportedServices[serviceId]);
 			
-			if (exportUrl == null)
+			if (exportUrl == null || exportUrl.isEmpty() || 
+				(!exportUrl.startsWith("http://") && !exportUrl.startsWith("https://")))
 			{
-				exportUrl = EXPORT_URL;
+				throw new Exception(supportedServices[serviceId] + " not set or invalid");
+			}
+			else if (!exportUrl.endsWith("/")) // There are other non-trivial cases, admins should configure these URLs carefully
+			{
+				exportUrl += "/";
 			}
 			
 			URL url = new URL(exportUrl + proxyPath + queryString);
@@ -98,7 +104,7 @@ public class ExportProxyServlet extends HttpServlet
 				con.setDoOutput(true);
 				
 				OutputStream params = con.getOutputStream();
-				Utils.copy(request.getInputStream(), params);
+				Utils.copyRestricted(request.getInputStream(), params);
 				params.flush();
 				params.close();
 	        }
@@ -140,6 +146,12 @@ public class ExportProxyServlet extends HttpServlet
 			out.flush();
 			out.close();
 		}
+		catch (SizeLimitExceededException e)
+		{
+			response.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+
+			throw e;
+		}
 		catch (Exception e)
 		{
 			response.setStatus(
@@ -152,8 +164,8 @@ public class ExportProxyServlet extends HttpServlet
 	/**
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
-	protected void doGet(HttpServletRequest request,
-			HttpServletResponse response) throws ServletException, IOException
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+		throws ServletException, IOException
 	{
 		doRequest("GET", request, response);
 	}
@@ -161,8 +173,8 @@ public class ExportProxyServlet extends HttpServlet
 	/**
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
-	protected void doPost(HttpServletRequest request,
-	HttpServletResponse response) throws ServletException, IOException
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+		throws ServletException, IOException
 	{
 		doRequest("POST", request, response);
 	}

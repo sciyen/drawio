@@ -207,7 +207,7 @@
 		<concat destfile="${basedir}/base-viewer.min.js" fixlastline="yes" append="no">
 			<filelist dir="${basedir}" files=".tmp0.min.js"/>
 			<filelist dir="${war.dir}/js/spin" files="spin.min.js"/>
-			<filelist dir="${war.dir}/js/sanitizer" files="sanitizer.min.js"/>
+			<filelist dir="${war.dir}/js/sanitizer" files="purify.min.js"/>
 			<filelist dir="${war.dir}/js/deflate" files="pako.min.js"/>
 			<filelist dir="${war.dir}/js/rough" files="rough.min.js"/>
 			<filelist dir="${basedir}" files="client.min.js,.tmp1.js"/>
@@ -318,10 +318,11 @@
 			
 		<concat destfile="${basedir}/base.min.js" fixlastline="yes" append="no">
 			<filelist dir="${war.dir}/js/spin" files="spin.min.js"/>
-			<filelist dir="${war.dir}/js/sanitizer" files="sanitizer.min.js"/>
+			<filelist dir="${war.dir}/js/sanitizer" files="purify.min.js"/>
 			<filelist dir="${war.dir}/js/cryptojs" files="aes.min.js"/>
 			<filelist dir="${war.dir}/js/deflate" files="pako.min.js"/>
 			<filelist dir="${war.dir}/js/rough" files="rough.min.js"/>
+			<filelist dir="${war.dir}/js/freehand" files="perfect-freehand.js"/>
 			<filelist dir="${basedir}" files="client.min.js,grapheditor.min.js,sidebar.min.js,.tmp1.js"/>
     	</concat>
 
@@ -413,9 +414,6 @@
 				<file name="GitLabFile.js" />
 				<file name="GitLabLibrary.js" />
 				<file name="GitLabClient.js" />
-				<file name="NotionFile.js" />
-				<file name="NotionLibrary.js" />
-				<file name="NotionClient.js" />
 				<file name="DrawioComment.js" />
 				<file name="DriveComment.js" />
 			</sources>
@@ -433,15 +431,17 @@
 				<file name="DistanceGuides.js" />
 				<file name="mxRuler.js" />
 				<file name="mxFreehand.js" />
+				<file name="P2PCollab.js" />
 			</sources>
 		</jscomp>
 
 		<concat destfile="${war.dir}/js/app.min.js" fixlastline="yes" append="no">
 			<filelist dir="${war.dir}/js/spin" files="spin.min.js"/>
-			<filelist dir="${war.dir}/js/sanitizer" files="sanitizer.min.js"/>
+			<filelist dir="${war.dir}/js/sanitizer" files="purify.min.js"/>
 			<filelist dir="${war.dir}/js/cryptojs" files="aes.min.js"/>
 			<filelist dir="${war.dir}/js/deflate" files="pako.min.js"/>
 			<filelist dir="${war.dir}/js/rough" files="rough.min.js"/>
+			<filelist dir="${war.dir}/js/freehand" files="perfect-freehand.js"/>
 			<filelist dir="${basedir}" files="client.min.js,grapheditor.min.js,sidebar.min.js,.tmp1.js"/>
     	</concat>
 
@@ -455,7 +455,48 @@
 		<delete file="${basedir}/.tmp1.js"/>
 	</target>
 
-	<target name="all" depends="app">
+	<target name="atlas" depends="app">
+		<concat destfile="${war.dir}/js/atlas-viewer.min.js" fixlastline="yes" append="no">
+			<file name="${basedir}/base-viewer.min.js" />
+			<file name="${war.dir}/js/orgchart.min.js" />
+    	</concat>
+
+		<jscomp compilationLevel="simple" debug="false" forceRecompile="true" output="${basedir}/.tmp0.js">
+			<sources dir="${war.dir}/connect/common/js">
+				<file name="mxReader.js" />
+			</sources>
+		</jscomp>
+
+	    <concat destfile="${war.dir}/js/atlas.min.js" fixlastline="yes" append="no">
+			<file name="${basedir}/base.min.js" />
+			<file name="${war.dir}/js/extensions.min.js" />
+			<file name="${basedir}/.tmp0.js" />
+    	</concat>
+
+		<delete file="${basedir}/.tmp0.js"/>
+	</target>
+
+	<target name="integrate" depends="atlas">
+		<copy file="${war.dir}/js/atlas.min.js" tofile="${war.dir}/js/integrate.min.js" overwrite="true"/>
+
+		<jscomp compilationLevel="simple" debug="false" forceRecompile="true" output="${basedir}/.tmp0.js">
+			<sources dir="${basedir}/../integrate">
+				<file name="Integrate.js" />
+			</sources>
+		</jscomp>
+		
+	    <concat destfile="${war.dir}/js/integrate.min.js" fixlastline="yes" append="yes">
+			<file name="${war.dir}/js/shapes-14-6-5.min.js" />
+    		<file name="${war.dir}/js/stencils.min.js" />
+    		<file name="${basedir}/.tmp0.js" />
+   		</concat>
+
+		<delete file="${basedir}/.tmp0.js"/>
+	</target>
+
+	<target name="all" depends="app, integrate">
+		<delete file="${war.dir}/js/atlas-viewer.min.js"/>
+		<delete file="${war.dir}/js/atlas.min.js"/>
 	</target>
 
 	<!-- ================== Stand-alone war creation ============================= -->
@@ -466,7 +507,7 @@
 
 	<target name="javac" description="Java compilation">
 		<mkdir dir="${javac.dir}"/>
-		<javac includeantruntime="false" srcdir="${src.dir}" excludes="**/EmbedServlet2.java" destdir="${javac.dir}">
+		<javac includeantruntime="false" srcdir="${src.dir}" destdir="${javac.dir}">
 			<classpath refid="javac.class.path" />
 		</javac>
 		<copy todir="${javac.dir}" file="${src.dir}/log4j.properties" />
