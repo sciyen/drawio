@@ -3,6 +3,7 @@ var script = document.createElement('script');
 script.src = "https://unpkg.com/zotero-api-client";
 document.head.appendChild(script);
 
+// Loading icon image
 var style = document.createElement('link');
 style.setAttribute('rel', 'stylesheet');
 style.setAttribute('href', "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css")
@@ -31,42 +32,83 @@ style.innerHTML = `
 	margin: 0 0 10px 0;
 	text-align: center;
 	justify-content: center;
-}`;
+}
+.item > p > a {
+	color: black;
+	text-decoration: none;
+	cursor: help;
+}
+.collection {
+	margin: 2px 0 2px 0;
+	padding-left: 5px;
+	border-style: solid;
+	border-width: 0 0 0 2px;
+}
+.item_container {
+	width: 100%;
+	background-color: white;
+	overflow: hidden;
+	padding: 12px 8px 12px 8px;
+}
+.default_btn {
+	width: 40%;
+	margin: 5px auto 5px auto;
+}
+.btn_container {
+	width: 100%;
+	background-color: white;
+	text-align: center;
+	justify-content: center;
+}
+.btn_container > button{
+	width: 40%;
+	margin: 5px;
+	border-width: 1px !important;
+	border-radius: 3px !important;
+	border-color: gray !important;
+	background: none !important;
+	float: none !important;
+	transition-duration: 0.4s;
+}
+.btn_container > button:hover{
+	background-color: #222222 !important;;
+  	color: white;
+}
+`;
 document.getElementsByTagName('head')[0].appendChild(style);
-
-/* get author information */
-function get_author(authors) {
-	if (typeof authors === 'undefined' || authors.length <= 0)
-		return "Unknown author"
-	if (authors.length >= 3)
-		return authors[0].lastName + " et.al."
-	if (authors.length == 2)
-		return authors[0].lastName + " & " + authors[1].lastName
-	return authors[0].lastName;
-}
-
-/* get year information */
-function get_year(date) {
-	function filter_year(tokens) {
-		for (const t of tokens) {
-			y = parseInt(t)
-			if (!isNaN(y) && y > 50 && y < 10000)
-				return t
-		}
-	}
-	if (typeof date === 'undefined' || date == "")
-		return "Unknown year"
-	return filter_year(date.split(/[-/,]/))
-}
-
-/* get details*/
-function get_tagname(item) {
-    return '[' + item.title + str_token + get_author(item.creators) + " " + get_year(item.date) + str_token + item.key + ']'
-}
 
 script.onload = () => {
 zoteroApi = ZoteroApiClient.default;
 Draw.loadPlugin(function (ui) {
+	/* get author information */
+	function get_author(authors) {
+		if (typeof authors === 'undefined' || authors.length <= 0)
+			return "Unknown author"
+		if (authors.length >= 3)
+			return authors[0].lastName + " et.al."
+		if (authors.length == 2)
+			return authors[0].lastName + " & " + authors[1].lastName
+		return authors[0].lastName;
+	}
+
+	/* get year information */
+	function get_year(date) {
+		function filter_year(tokens) {
+			for (const t of tokens) {
+				y = parseInt(t)
+				if (!isNaN(y) && y > 50 && y < 10000)
+					return t
+			}
+		}
+		if (typeof date === 'undefined' || date == "")
+			return "Unknown year"
+		return filter_year(date.split(/[-/,]/))
+	}
+
+	/* get details*/
+	function get_tagname(item) {
+		return '[' + item.title + str_token + get_author(item.creators) + " " + get_year(item.date) + str_token + item.key + ']'
+	}
 
 	function refresh_ui(){
 		selected_tags = graph.getCommonTagsForCells(graph.getSelectionCells())
@@ -139,10 +181,7 @@ Draw.loadPlugin(function (ui) {
 						return root_div.querySelector(`#${get_collection_id(target)}`);
 
 					collection_div = document.createElement('div')
-					collection_div.style.margin = '2px 0 2px 0'
-					collection_div.style.paddingLeft = '5px'
-					collection_div.style.borderStyle = 'solid'
-					collection_div.style.borderWidth = '0 0 0 2px'
+					collection_div.classList.add('collection');
 					collection_div.innerHTML = '<h5 style="padding:5px 0 5px 0; background-color:#BBB; cursor:pointer; ">' + collection_list[target].name + '</h5><div style="max-height:10000px" class="collapsible"></div>'
 					collection_div.setAttribute('id', get_collection_id(target))
 
@@ -249,7 +288,8 @@ Draw.loadPlugin(function (ui) {
 
 								title = document.createElement('p');
 								title.style.margin = 0;
-								title.innerHTML = item.title;
+								// title.innerHTML = item.title;
+								title.innerHTML = `<a href="https://doi.org/${item.DOI}" target="_blank" rel="noopener noreferrer">${item.title}</a>`;
 		
 								// Generate metadata for drawio plugin
 								// \u4e00-\u9fa5 is used to match Chinese character
@@ -306,18 +346,19 @@ Draw.loadPlugin(function (ui) {
 	var TagSelectorWindow = function(editorUi, x, y, w, h){
 		var graph = editorUi.editor.graph;
 
-		
 		var div = document.createElement('div');
 		div.style.overflow = 'hidden';
 		div.style.padding = '12px 8px 12px 8px';
 		div.style.height = 'auto';
 
 		var InfoDiv = document.createElement('div');
-		InfoDiv.innerHTML = '<i class="fa fa-github"></i> <a href="https://github.com/sciyen/ResearchHelper">GitHub</a> © 2023 <a href="https://github.com/sciyen">sciyen</a>';
+		InfoDiv.innerHTML = `<i class="fa fa-github"></i> 
+			<a href="https://github.com/sciyen/ResearchHelper" target="_blank" rel="noopener noreferrer">GitHub</a> © 2023 
+			<a href="https://github.com/sciyen" target="_blank" rel="noopener noreferrer">sciyen</a>`;
 		InfoDiv.classList.add('title_header');
 		div.appendChild(InfoDiv);
 
-		// Zotero UID and Key
+		// #region Zotero UID and Key
 		var UIDDiv = document.createElement('div');
 		UIDDiv.innerHTML = '<label for="zotero_uid">Zotero UID    </label>';
 		var UIDInput = document.createElement('input');
@@ -359,15 +400,21 @@ Draw.loadPlugin(function (ui) {
 		APIKeyDiv.append(APIKeyDes);
 		div.appendChild(UIDDiv);
 		div.appendChild(APIKeyDiv);
-		// Zotero UID and Key
-	
-		// Searching by Title
+		// #endregion Zotero UID and Key
+
+		var buttonsDiv = document.createElement('div');
+		buttonsDiv.classList.add('btn_container');
+
 		var updateBtn = document.createElement('button');
-		updateBtn.innerHTML = 'Refresh'
-		updateBtn.style.width = '40%';
-		updateBtn.style.margin = '5px auto 5px auto';
-		div.appendChild(updateBtn);
+		updateBtn.textContent = 'Refresh'
+		buttonsDiv.appendChild(updateBtn);
 	
+		var exportBtn = document.createElement('button');
+		exportBtn.textContent = 'Export Selections'
+		buttonsDiv.appendChild(exportBtn);
+		div.append(buttonsDiv)
+	
+		// #region Searching by Title
 		var filterInput = document.createElement('input');
 		filterInput.setAttribute('placeholder', 'Search by Title');
 		filterInput.setAttribute('type', 'text');
@@ -378,29 +425,27 @@ Draw.loadPlugin(function (ui) {
 		var searchResultDiv = document.createElement('div');
 		searchResultDiv.setAttribute('id', 'search_results')
 		searchResultDiv.classList.add('item_container');
-		searchResultDiv.style.width = '100%';
-		searchResultDiv.style.overflow = 'hidden';
-		searchResultDiv.style.padding = '12px 8px 12px 8px';
 		searchResultDiv.innerHTML = '<h4 style="padding:5px 0 5px 0;">Searching Results</h4>'
 		div.appendChild(searchResultDiv);
-		// Searching by Title
+		// #endregion Searching by Title
 
+		// #region Reference Block
 		var referenceDiv = document.createElement('div');
 		referenceDiv.setAttribute('id', 'references')
 		referenceDiv.classList.add('item_container');
-		referenceDiv.style.width = '100%';
-		referenceDiv.style.overflow = 'hidden';
-		referenceDiv.style.padding = '12px 8px 12px 8px';
 		referenceDiv.innerHTML = '<h4 style="padding:5px 0 5px 0;">Collections</h4>'
 		div.appendChild(referenceDiv);
-	
-		this.window = new mxWindow(mxResources.get('tagSelector'), div, x, y, w, null, true, true);
+		// #endregion Reference Block
+		
+		// #region Selector Dialog
+		this.window = new mxWindow(mxResources.get('tagSelector'), div, x, y, w, h, true, true);
 		this.window.destroyOnClose = false;
 		this.window.setMaximizable(false);
 		this.window.setResizable(true);
 		this.window.setScrollable(true);
 		this.window.setClosable(true);
 		this.window.contentWrapper.style.overflowY = 'scroll';
+		// #endregion Selector Dialog
 	
 		mxEvent.addListener(filterInput, 'keyup', function(evt){
 			// Do something
@@ -461,6 +506,31 @@ Draw.loadPlugin(function (ui) {
 				localStorage.setItem('.configuration', JSON.stringify(config));
 			}
 		});
+
+		mxEvent.addListener(exportBtn, 'click', function(evt){
+			tags_list = graph.getTagsForCells(graph.getSelectionCells());
+			console.log(tags_list)
+			citation = '<div>';
+			tags_list.forEach((tag) => {
+				info = get_citation_info(tag);
+				citation += `<div>
+						<span style="margin=0; padding=0; color="red";>${item_list[info.key].citation}</span>
+						<span style="margin=0; padding=0; color="blue";>${item_list[info.key].title}</span>
+					</div>`;
+			})
+			citation += '</div>'
+
+			// copy to clipboard
+			var data = [new ClipboardItem(
+				{"text/html": Promise.resolve(
+						new Blob([citation], { type: "text/html" })) })];
+			navigator.clipboard.write(data).then(function() {
+				console.log("Copied to clipboard successfully!" + citation);
+				alert("Citation copied to clipboard!");
+			}, function() {
+				console.error("Unable to write to clipboard. :-(");
+			});
+		});
 	
 		this.window.addListener('show', mxUtils.bind(this, function(){
 			this.window.fit();
@@ -515,7 +585,7 @@ Draw.loadPlugin(function (ui) {
 		ui.actions.addAction('tagSelector...', () => {
 			if (ui.tagSelectorWindow == null)
 			{
-				ui.tagSelectorWindow = new TagSelectorWindow(ui, document.body.offsetWidth - 380, 120, 300, 240);
+				ui.tagSelectorWindow = new TagSelectorWindow(ui, document.body.offsetWidth - 380, 120, 300, 800);
 				ui.tagSelectorWindow.window.addListener('show', function()
 				{
 					ui.fireEvent(new mxEventObject('tagSelector'));
